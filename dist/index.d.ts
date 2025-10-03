@@ -6,9 +6,10 @@ export { ExpressAdapter } from './adapters/express';
 export { FastifyAdapter } from './adapters/fastify';
 export { FrameworkAdapterFactory } from './adapters/factory';
 export type { GenericRequest, GenericResponse, CookieOptions } from './types/framework';
-export { createExpressApp, createFastifyApp } from './helpers';
+export { app } from './helpers';
 export default function hweb(options: HightJSOptions): {
     prepare: () => Promise<void>;
+    executeInstrumentation: () => void;
     getRequestHandler: () => RequestHandler;
     setupWebSocket: (server: any) => void;
     build: () => Promise<void>;

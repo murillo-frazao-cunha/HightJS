@@ -5,24 +5,32 @@ export class JWTManager {
     private secret: string;
 
     constructor(secret?: string) {
-        this.secret = secret || process.env.HWEB_AUTH_SECRET || this.generateSecret();
-    }
+        if (!secret && !process.env.HWEB_AUTH_SECRET) {
+            throw new Error('JWT secret is required. Set HWEB_AUTH_SECRET environment variable or provide secret parameter.');
+        }
 
-    private generateSecret(): string {
-        return crypto.randomBytes(32).toString('hex');
+        this.secret = secret || process.env.HWEB_AUTH_SECRET!;
+
+        if (this.secret.length < 32) {
+            throw new Error('JWT secret must be at least 32 characters long for security.');
+        }
     }
 
     /**
-     * Cria um JWT token simples (sem biblioteca externa)
+     * Cria um JWT token com validação de algoritmo
      */
     sign(payload: any, expiresIn: number = 86400): string {
         const header = { alg: 'HS256', typ: 'JWT' };
         const now = Math.floor(Date.now() / 1000);
 
+        // Sanitize payload to prevent injection
+        const sanitizedPayload = this.sanitizePayload(payload);
+
         const tokenPayload = {
-            ...payload,
+            ...sanitizedPayload,
             iat: now,
-            exp: now + expiresIn
+            exp: now + expiresIn,
+            alg: 'HS256' // Prevent algorithm confusion attacks
         };
 
         const encodedHeader = this.base64UrlEncode(JSON.stringify(header));
@@ -34,24 +42,41 @@ export class JWTManager {
     }
 
     /**
-     * Verifica e decodifica um JWT token
+     * Verifica e decodifica um JWT token com validação rigorosa
      */
     verify(token: string): any | null {
         try {
+            if (!token || typeof token !== 'string') return null;
+
             const parts = token.split('.');
             if (parts.length !== 3) return null;
 
-            const [header, payload, signature] = parts;
+            const [headerEncoded, payloadEncoded, signature] = parts;
 
-            // Verifica a assinatura
-            const expectedSignature = this.createSignature(header + '.' + payload);
-            if (signature !== expectedSignature) return null;
+            // Decode and validate header
+            const header = JSON.parse(this.base64UrlDecode(headerEncoded));
+            if (header.alg !== 'HS256' || header.typ !== 'JWT') {
+                return null; // Prevent algorithm confusion attacks
+            }
+
+            // Verifica a assinatura usando constant-time comparison
+            const expectedSignature = this.createSignature(headerEncoded + '.' + payloadEncoded);
+            if (!this.constantTimeEqual(signature, expectedSignature)) return null;
 
             // Decodifica o payload
-            const decodedPayload = JSON.parse(this.base64UrlDecode(payload));
+            const decodedPayload = JSON.parse(this.base64UrlDecode(payloadEncoded));
 
-            // Verifica expiração
-            if (decodedPayload.exp && decodedPayload.exp < Math.floor(Date.now() / 1000)) {
+            // Validate algorithm in payload matches header
+            if (decodedPayload.alg !== 'HS256') return null;
+
+            // Verifica expiração com margem de erro de 30 segundos
+            const now = Math.floor(Date.now() / 1000);
+            if (decodedPayload.exp && decodedPayload.exp < (now - 30)) {
+                return null;
+            }
+
+            // Validate issued at time (not too far in future)
+            if (decodedPayload.iat && decodedPayload.iat > (now + 300)) {
                 return null;
             }
 
@@ -59,6 +84,32 @@ export class JWTManager {
         } catch (error) {
             return null;
         }
+    }
+
+    private sanitizePayload(payload: any): any {
+        if (typeof payload !== 'object' || payload === null) {
+            return {};
+        }
+
+        const sanitized: any = {};
+        for (const [key, value] of Object.entries(payload)) {
+            // Skip dangerous properties
+            if (key.startsWith('__') || key === 'constructor' || key === 'prototype') {
+                continue;
+            }
+            sanitized[key] = value;
+        }
+        return sanitized;
+    }
+
+    private constantTimeEqual(a: string, b: string): boolean {
+        if (a.length !== b.length) return false;
+
+        let result = 0;
+        for (let i = 0; i < a.length; i++) {
+            result |= a.charCodeAt(i) ^ b.charCodeAt(i);
+        }
+        return result === 0;
     }
 
     private base64UrlEncode(str: string): string {
@@ -99,7 +150,7 @@ export class SessionManager {
      */
     createSession(user: User): { session: Session; token: string } {
         const expires = new Date(Date.now() + this.maxAge * 1000).toISOString();
-        console.log(user)
+
         const session: Session = {
             user,
             expires

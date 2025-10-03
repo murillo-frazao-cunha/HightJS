@@ -7,21 +7,27 @@ exports.SessionManager = exports.JWTManager = void 0;
 const crypto_1 = __importDefault(require("crypto"));
 class JWTManager {
     constructor(secret) {
-        this.secret = secret || process.env.HWEB_AUTH_SECRET || this.generateSecret();
-    }
-    generateSecret() {
-        return crypto_1.default.randomBytes(32).toString('hex');
+        if (!secret && !process.env.HWEB_AUTH_SECRET) {
+            throw new Error('JWT secret is required. Set HWEB_AUTH_SECRET environment variable or provide secret parameter.');
+        }
+        this.secret = secret || process.env.HWEB_AUTH_SECRET;
+        if (this.secret.length < 32) {
+            throw new Error('JWT secret must be at least 32 characters long for security.');
+        }
     }
     /**
-     * Cria um JWT token simples (sem biblioteca externa)
+     * Cria um JWT token com validação de algoritmo
      */
     sign(payload, expiresIn = 86400) {
         const header = { alg: 'HS256', typ: 'JWT' };
         const now = Math.floor(Date.now() / 1000);
+        // Sanitize payload to prevent injection
+        const sanitizedPayload = this.sanitizePayload(payload);
         const tokenPayload = {
-            ...payload,
+            ...sanitizedPayload,
             iat: now,
-            exp: now + expiresIn
+            exp: now + expiresIn,
+            alg: 'HS256' // Prevent algorithm confusion attacks
         };
         const encodedHeader = this.base64UrlEncode(JSON.stringify(header));
         const encodedPayload = this.base64UrlEncode(JSON.stringify(tokenPayload));
@@ -29,22 +35,37 @@ class JWTManager {
         return `${encodedHeader}.${encodedPayload}.${signature}`;
     }
     /**
-     * Verifica e decodifica um JWT token
+     * Verifica e decodifica um JWT token com validação rigorosa
      */
     verify(token) {
         try {
+            if (!token || typeof token !== 'string')
+                return null;
             const parts = token.split('.');
             if (parts.length !== 3)
                 return null;
-            const [header, payload, signature] = parts;
-            // Verifica a assinatura
-            const expectedSignature = this.createSignature(header + '.' + payload);
-            if (signature !== expectedSignature)
+            const [headerEncoded, payloadEncoded, signature] = parts;
+            // Decode and validate header
+            const header = JSON.parse(this.base64UrlDecode(headerEncoded));
+            if (header.alg !== 'HS256' || header.typ !== 'JWT') {
+                return null; // Prevent algorithm confusion attacks
+            }
+            // Verifica a assinatura usando constant-time comparison
+            const expectedSignature = this.createSignature(headerEncoded + '.' + payloadEncoded);
+            if (!this.constantTimeEqual(signature, expectedSignature))
                 return null;
             // Decodifica o payload
-            const decodedPayload = JSON.parse(this.base64UrlDecode(payload));
-            // Verifica expiração
-            if (decodedPayload.exp && decodedPayload.exp < Math.floor(Date.now() / 1000)) {
+            const decodedPayload = JSON.parse(this.base64UrlDecode(payloadEncoded));
+            // Validate algorithm in payload matches header
+            if (decodedPayload.alg !== 'HS256')
+                return null;
+            // Verifica expiração com margem de erro de 30 segundos
+            const now = Math.floor(Date.now() / 1000);
+            if (decodedPayload.exp && decodedPayload.exp < (now - 30)) {
+                return null;
+            }
+            // Validate issued at time (not too far in future)
+            if (decodedPayload.iat && decodedPayload.iat > (now + 300)) {
                 return null;
             }
             return decodedPayload;
@@ -52,6 +73,29 @@ class JWTManager {
         catch (error) {
             return null;
         }
+    }
+    sanitizePayload(payload) {
+        if (typeof payload !== 'object' || payload === null) {
+            return {};
+        }
+        const sanitized = {};
+        for (const [key, value] of Object.entries(payload)) {
+            // Skip dangerous properties
+            if (key.startsWith('__') || key === 'constructor' || key === 'prototype') {
+                continue;
+            }
+            sanitized[key] = value;
+        }
+        return sanitized;
+    }
+    constantTimeEqual(a, b) {
+        if (a.length !== b.length)
+            return false;
+        let result = 0;
+        for (let i = 0; i < a.length; i++) {
+            result |= a.charCodeAt(i) ^ b.charCodeAt(i);
+        }
+        return result === 0;
     }
     base64UrlEncode(str) {
         return Buffer.from(str)
@@ -85,7 +129,6 @@ class SessionManager {
      */
     createSession(user) {
         const expires = new Date(Date.now() + this.maxAge * 1000).toISOString();
-        console.log(user);
         const session = {
             user,
             expires

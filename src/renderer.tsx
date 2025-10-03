@@ -13,11 +13,8 @@ function encodeInitialData(data: any): string {
 
 function createDecodeScript(): string {
     return `
-    window.__HWEB_DECODE__ = function(encoded) {
-        const base64 = encoded.replace('hweb_', '').replace('_config', '');
-        const jsonStr = atob(base64);
-        return JSON.parse(jsonStr);
-    };
+    const process = { env: { NODE_ENV: '${process.env.NODE_ENV || 'development'}' } };
+    window.__HWEB_DECODE__ = function(encoded) { const base64 = encoded.replace('hweb_', '').replace('_config', ''); const jsonStr = atob(base64); return JSON.parse(jsonStr); };
     `;
 }
 
@@ -63,41 +60,16 @@ export async function render({ req, route, params, allRoutes }: RenderOptions): 
     const encodedData = encodeInitialData(initialData);
 
     // Scripts do React servidos do node_modules em vez de CDN
-    const reactScripts = `<!-- Scripts do React (Local) -->
-      <script src="/hweb-react/react.js"></script>
-      <script src="/hweb-react/react-dom.js"></script>`;
+    const reactScripts = `<script src="/hweb-react/react.js"></script><script src="/hweb-react/react-dom.js"></script>`;
 
     // Script de hot reload apenas em desenvolvimento
     const hotReloadScript = !isProduction && hotReloadManager
         ? hotReloadManager.getClientScript()
         : '';
 
+    const favicon = metadata.favicon ? `<link rel="icon" href="${metadata.favicon}">` : '';
+
     // HTML base sem SSR - apenas o container e scripts para client-side rendering
     // O layout será renderizado no CLIENTE, não no servidor
-    return `<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${metadata.title || 'App hweb'}</title>
-  ${metadata.description ? `<meta name="description" content="${metadata.description}">` : ''}
-</head>
-<body>
-  <!-- Container vazio - o React vai renderizar aqui no cliente -->
-  <div id="root"></div>
-
-  <!-- Dados iniciais codificados (disfarçados) -->
-  <script>
-    ${createDecodeScript()}
-    window.__HWEB_INITIAL_DATA__ = window.__HWEB_DECODE__('${encodedData}');
-  </script>
-
-  ${reactScripts}
-
-  <!-- Script principal - vai fazer o render inicial no cliente -->
-  <script src="/hweb-dist/main.js"></script>
-
-  ${hotReloadScript}
-</body>
-</html>`;
+    return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>${metadata.title || 'App hweb'}</title>${metadata.description ? `<meta name="description" content="${metadata.description}">` : ''}${favicon}</head><body><div id="root"></div><script>${createDecodeScript()}window.__HWEB_INITIAL_DATA__ = window.__HWEB_DECODE__('${encodedData}');</script>${reactScripts}<script src="/hweb-dist/main.js"></script>${hotReloadScript}</body></html>`;
 }

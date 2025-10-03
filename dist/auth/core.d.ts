@@ -38,7 +38,7 @@ export declare class HWebAuth {
         session: Session;
     } | HightJSResponse>;
     /**
-     * Cria resposta com cookie de autenticação
+     * Cria resposta com cookie de autenticação - Secure implementation
      */
     createAuthResponse(token: string, data: any): HightJSResponse;
     /**

@@ -1,35 +1,16 @@
 import type { HightJSOptions } from './types';
-/**
- * Helper para integração com Express
- */
-export declare function createExpressApp(options?: HightJSOptions): {
+export default app;
+export declare function app(options?: HightJSOptions): {
     /**
-     * Integra com uma aplicação Express existente
+     * Integra com uma aplicação de qualquer framework (Express, Fastify, etc)
      */
-    integrate: (expressApp: any) => Promise<any>;
+    integrate: (serverApp: any) => Promise<any>;
     /**
-     * Cria um servidor Express standalone
+     * Inicia um servidor HightJS fechado (o usuário não tem acesso ao framework)
      */
-    listen: (port?: number, hostname?: string) => Promise<any>;
+    init: () => Promise<any>;
     prepare: () => Promise<void>;
-    getRequestHandler: () => import("./types").RequestHandler;
-    setupWebSocket: (server: any) => void;
-    build: () => Promise<void>;
-    stop: () => void;
-};
-/**
- * Helper para integração com Fastify
- */
-export declare function createFastifyApp(options?: HightJSOptions): {
-    /**
-     * Integra com uma aplicação Fastify existente
-     */
-    integrate: (fastifyApp: any) => Promise<any>;
-    /**
-     * Cria um servidor Fastify standalone
-     */
-    listen: (port?: number, hostname?: string) => Promise<any>;
-    prepare: () => Promise<void>;
+    executeInstrumentation: () => void;
     getRequestHandler: () => import("./types").RequestHandler;
     setupWebSocket: (server: any) => void;
     build: () => Promise<void>;

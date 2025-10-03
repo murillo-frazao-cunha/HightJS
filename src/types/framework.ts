@@ -33,7 +33,7 @@ export interface CookieOptions {
     sameSite?: boolean | 'lax' | 'strict' | 'none';
 }
 
-export type FrameworkType = 'express' | 'fastify';
+export type FrameworkType = 'express' | 'fastify' | 'native';
 
 export interface FrameworkAdapter {
     type: FrameworkType;

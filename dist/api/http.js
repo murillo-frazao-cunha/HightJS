@@ -1,13 +1,88 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.HightJSResponse = exports.HightJSRequest = void 0;
+// Input validation and sanitization utilities
+class SecurityUtils {
+    static sanitizeHeader(value) {
+        if (Array.isArray(value)) {
+            return value.map(v => this.sanitizeString(v, this.MAX_HEADER_LENGTH));
+        }
+        return this.sanitizeString(value, this.MAX_HEADER_LENGTH);
+    }
+    static sanitizeString(str, maxLength) {
+        if (typeof str !== 'string')
+            return '';
+        // Remove null bytes and control characters except newline/tab
+        let clean = str.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+        // Limit length
+        if (clean.length > maxLength) {
+            clean = clean.substring(0, maxLength);
+        }
+        return clean;
+    }
+    static isValidURL(url) {
+        if (!url || typeof url !== 'string')
+            return false;
+        if (url.length > this.MAX_URL_LENGTH)
+            return false;
+        // Basic URL validation - prevent dangerous protocols
+        const dangerousProtocols = ['javascript:', 'data:', 'vbscript:', 'file:'];
+        const lowerUrl = url.toLowerCase();
+        return !dangerousProtocols.some(protocol => lowerUrl.startsWith(protocol));
+    }
+    static validateContentLength(length) {
+        return length >= 0 && length <= this.MAX_BODY_SIZE;
+    }
+}
+SecurityUtils.MAX_HEADER_LENGTH = 8192;
+SecurityUtils.MAX_COOKIE_LENGTH = 4096;
+SecurityUtils.MAX_URL_LENGTH = 2048;
+SecurityUtils.MAX_BODY_SIZE = 10 * 1024 * 1024; // 10MB
 /**
  * Abstração sobre a requisição HTTP de entrada.
  * Funciona com qualquer framework web (Express, Fastify, etc.)
  */
 class HightJSRequest {
     constructor(req) {
-        this._req = req;
+        // Validate and sanitize request data
+        this._req = this.validateAndSanitizeRequest(req);
+    }
+    validateAndSanitizeRequest(req) {
+        // Validate URL
+        if (!SecurityUtils.isValidURL(req.url)) {
+            throw new Error('Invalid URL format');
+        }
+        // Sanitize headers
+        const sanitizedHeaders = {};
+        for (const [key, value] of Object.entries(req.headers || {})) {
+            const cleanKey = SecurityUtils.sanitizeString(key.toLowerCase(), 100);
+            if (cleanKey && value) {
+                sanitizedHeaders[cleanKey] = SecurityUtils.sanitizeHeader(value);
+            }
+        }
+        // Validate content length
+        const contentLength = req.headers['content-length'];
+        if (contentLength) {
+            const length = parseInt(Array.isArray(contentLength) ? contentLength[0] : contentLength, 10);
+            if (!SecurityUtils.validateContentLength(length)) {
+                throw new Error('Request too large');
+            }
+        }
+        // Sanitize cookies
+        const sanitizedCookies = {};
+        for (const [key, value] of Object.entries(req.cookies || {})) {
+            const cleanKey = SecurityUtils.sanitizeString(key, 100);
+            const cleanValue = SecurityUtils.sanitizeString(value, SecurityUtils.MAX_COOKIE_LENGTH);
+            if (cleanKey && cleanValue) {
+                sanitizedCookies[cleanKey] = cleanValue;
+            }
+        }
+        return {
+            ...req,
+            headers: sanitizedHeaders,
+            cookies: sanitizedCookies,
+            url: SecurityUtils.sanitizeString(req.url, SecurityUtils.MAX_URL_LENGTH)
+        };
     }
     /**
      * Retorna o método HTTP da requisição (GET, POST, etc.)
@@ -28,10 +103,13 @@ class HightJSRequest {
         return this._req.headers;
     }
     /**
-     * Retorna um header específico
+     * Retorna um header específico com validação
      */
     header(name) {
-        return this._req.headers[name.toLowerCase()];
+        if (!name || typeof name !== 'string')
+            return undefined;
+        const cleanName = SecurityUtils.sanitizeString(name.toLowerCase(), 100);
+        return this._req.headers[cleanName];
     }
     /**
      * Retorna todos os query parameters
@@ -52,16 +130,36 @@ class HightJSRequest {
         return this._req.cookies || {};
     }
     /**
-     * Retorna um cookie específico
+     * Retorna um cookie específico com validação
      */
     cookie(name) {
-        return this._req.cookies?.[name];
+        if (!name || typeof name !== 'string')
+            return undefined;
+        const cleanName = SecurityUtils.sanitizeString(name, 100);
+        return this._req.cookies?.[cleanName];
     }
     /**
-     * Retorna o corpo (body) da requisição, já parseado como JSON.
+     * Retorna o corpo (body) da requisição, já parseado como JSON com validação
      */
     async json() {
-        return this._req.body;
+        try {
+            const body = this._req.body;
+            // Validate JSON structure
+            if (typeof body === 'string') {
+                // Check for potential JSON bombs
+                if (body.length > SecurityUtils.MAX_BODY_SIZE) {
+                    throw new Error('Request body too large');
+                }
+                return JSON.parse(body);
+            }
+            return body;
+        }
+        catch (error) {
+            if (error instanceof SyntaxError) {
+                throw new Error('Invalid JSON format');
+            }
+            throw error;
+        }
     }
     /**
      * Retorna o corpo da requisição como texto
@@ -102,19 +200,44 @@ class HightJSRequest {
         return xhr === 'XMLHttpRequest';
     }
     /**
-     * Retorna o IP do cliente
+     * Retorna o IP do cliente com validação melhorada
      */
     get ip() {
+        // Check X-Forwarded-For with validation
         const forwarded = this.header('x-forwarded-for');
         if (forwarded) {
             const ips = Array.isArray(forwarded) ? forwarded[0] : forwarded;
-            return ips.split(',')[0].trim();
+            const firstIp = ips.split(',')[0].trim();
+            // Basic IP validation
+            if (this.isValidIP(firstIp)) {
+                return firstIp;
+            }
         }
+        // Check X-Real-IP
         const realIp = this.header('x-real-ip');
         if (realIp) {
-            return Array.isArray(realIp) ? realIp[0] : realIp;
+            const ip = Array.isArray(realIp) ? realIp[0] : realIp;
+            if (this.isValidIP(ip)) {
+                return ip;
+            }
         }
         return 'unknown';
+    }
+    isValidIP(ip) {
+        if (!ip || typeof ip !== 'string')
+            return false;
+        // Basic IPv4 validation
+        const ipv4Regex = /^(\d{1,3}\.){3}\d{1,3}$/;
+        if (ipv4Regex.test(ip)) {
+            const parts = ip.split('.');
+            return parts.every(part => {
+                const num = parseInt(part, 10);
+                return num >= 0 && num <= 255;
+            });
+        }
+        // Basic IPv6 validation (simplified)
+        const ipv6Regex = /^([0-9a-fA-F]{0,4}:){1,7}[0-9a-fA-F]{0,4}$/;
+        return ipv6Regex.test(ip);
     }
     /**
      * Retorna o User-Agent

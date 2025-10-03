@@ -82,8 +82,8 @@ export class HWebAuth {
             .clearCookie('hweb-auth-token', {
                 path: '/',
                 httpOnly: true,
-                secure: process.env.NODE_ENV === 'production',
-                sameSite: 'lax'
+                secure: true, // Always use secure cookies
+                sameSite: 'strict' // Stronger CSRF protection
             });
     }
 
@@ -117,18 +117,23 @@ export class HWebAuth {
     }
 
     /**
-     * Cria resposta com cookie de autenticação
+     * Cria resposta com cookie de autenticação - Secure implementation
      */
     createAuthResponse(token: string, data: any): HightJSResponse {
         return HightJSResponse
             .json(data)
             .cookie('hweb-auth-token', token, {
                 httpOnly: true,
-                secure: process.env.NODE_ENV === 'production',
-                sameSite: 'lax',
+                secure: true, // Always secure, even in development
+                sameSite: 'strict', // Prevent CSRF attacks
                 maxAge: (this.config.session?.maxAge || 86400) * 1000,
-                path: '/'
-            });
+                path: '/',
+                domain: undefined // Let browser set automatically for security
+            })
+            .header('X-Content-Type-Options', 'nosniff')
+            .header('X-Frame-Options', 'DENY')
+            .header('X-XSS-Protection', '1; mode=block')
+            .header('Referrer-Policy', 'strict-origin-when-cross-origin');
     }
 
     /**

@@ -7,6 +7,7 @@ export declare class HightJSRequest {
     /** A requisição genérica parseada pelo adapter */
     private readonly _req;
     constructor(req: GenericRequest);
+    private validateAndSanitizeRequest;
     /**
      * Retorna o método HTTP da requisição (GET, POST, etc.)
      */
@@ -20,7 +21,7 @@ export declare class HightJSRequest {
      */
     get headers(): Record<string, string | string[]>;
     /**
-     * Retorna um header específico
+     * Retorna um header específico com validação
      */
     header(name: string): string | string[] | undefined;
     /**
@@ -36,11 +37,11 @@ export declare class HightJSRequest {
      */
     get cookies(): Record<string, string>;
     /**
-     * Retorna um cookie específico
+     * Retorna um cookie específico com validação
      */
     cookie(name: string): string | undefined;
     /**
-     * Retorna o corpo (body) da requisição, já parseado como JSON.
+     * Retorna o corpo (body) da requisição, já parseado como JSON com validação
      */
     json<T = any>(): Promise<T>;
     /**
@@ -64,9 +65,10 @@ export declare class HightJSRequest {
      */
     get isAjax(): boolean;
     /**
-     * Retorna o IP do cliente
+     * Retorna o IP do cliente com validação melhorada
      */
     get ip(): string;
+    private isValidIP;
     /**
      * Retorna o User-Agent
      */

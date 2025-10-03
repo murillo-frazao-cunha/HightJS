@@ -4,6 +4,7 @@
 require('ts-node').register();
 
 const { program } = require('commander');
+const teste = require("../helpers");
 
 program
     .version('1.0.0')
@@ -15,11 +16,11 @@ program
     .description('Inicia a aplicação em modo de desenvolvimento.')
     .option('-p, --port <number>', 'Especifica a porta para rodar', '3000')
     .option('-H, --hostname <string>', 'Especifica o hostname para rodar', '0.0.0.0')
+    .option('-f, --framework <string>', 'Especifica o framework a ser usado (native/express/fastify)', 'native')
     .action((options) => {
-        const { createFastifyApp } = require("../helpers"); // Ajuste o caminho se necessário
-        const app = createFastifyApp({ dev: true }); // A diferença está aqui!
-
-        app.listen(options.port, options.hostname)
+        const teste = require("../helpers");
+        const t = teste.default({ dev: true, port: options.port, hostname: options.hostname, framework: options.framework });
+        t.init()
     });
 
 // --- Comando START (Produção) ---
@@ -29,10 +30,9 @@ program
     .option('-p, --port <number>', 'Especifica a porta para rodar', '3000')
     .option('-H, --hostname <string>', 'Especifica o hostname para rodar', '0.0.0.0')
     .action((options) => {
-        const { createFastifyApp } = require("../helpers"); // Ajuste o caminho se necessário
-        const app = createFastifyApp({ dev: false });
-
-        app.listen(options.port, options.hostname);
+        const teste = require("../helpers");
+        const t = teste.default({ dev: false, port: options.port, hostname: options.hostname, framework: options.adapter });
+        t.init()
     });
 
 // Faz o "parse" dos argumentos passados na linha de comando

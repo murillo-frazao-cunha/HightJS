@@ -2,15 +2,16 @@ import type { User, Session } from './types';
 export declare class JWTManager {
     private secret;
     constructor(secret?: string);
-    private generateSecret;
     /**
-     * Cria um JWT token simples (sem biblioteca externa)
+     * Cria um JWT token com validação de algoritmo
      */
     sign(payload: any, expiresIn?: number): string;
     /**
-     * Verifica e decodifica um JWT token
+     * Verifica e decodifica um JWT token com validação rigorosa
      */
     verify(token: string): any | null;
+    private sanitizePayload;
+    private constantTimeEqual;
     private base64UrlEncode;
     private base64UrlDecode;
     private createSignature;

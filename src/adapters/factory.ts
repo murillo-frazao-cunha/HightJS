@@ -1,6 +1,7 @@
 import { FrameworkAdapter } from '../types/framework';
 import { ExpressAdapter } from './express';
 import { FastifyAdapter } from './fastify';
+import { NativeAdapter } from './native';
 import Console, { Colors} from "../api/console"
 /**
  * Factory para criar o adapter correto baseado no framework detectado
@@ -32,6 +33,14 @@ export class FrameworkAdapterFactory {
             return this.adapter;
         }
 
+        // Detecta HTTP nativo do Node.js
+        if (req.method !== undefined && req.url !== undefined && req.headers !== undefined &&
+            res.statusCode !== undefined && res.setHeader !== undefined && res.end !== undefined) {
+            msg.end(`  ${Colors.FgGreen}●  ${Colors.Reset}Framework detectado: HightJS Native (HTTP)`);
+            this.adapter = new NativeAdapter();
+            return this.adapter;
+        }
+
         // Fallback mais específico para Express
         if (res.status && res.send && res.json && res.cookie) {
             msg.end(`  ${Colors.FgGreen}●  ${Colors.Reset}Framework detectado: Express (fallback)`);
@@ -46,22 +55,25 @@ export class FrameworkAdapterFactory {
             return this.adapter;
         }
 
-        // Default para Express se não conseguir detectar
-        msg.end(`  ${Colors.FgYellow}●  ${Colors.Reset}Não foi possível detectar o framework. Usando Express como padrão.`);
-        this.adapter = new ExpressAdapter();
+        // Default para HightJS Native se não conseguir detectar
+        msg.end(`  ${Colors.FgYellow}●  ${Colors.Reset}Não foi possível detectar o framework. Usando HightJS Native como padrão.`);
+        this.adapter = new NativeAdapter();
         return this.adapter;
     }
 
     /**
      * Força o uso de um framework específico
      */
-    static setFramework(framework: 'express' | 'fastify'): void {
+    static setFramework(framework: 'express' | 'fastify' | 'native'): void {
         switch (framework) {
             case 'express':
                 this.adapter = new ExpressAdapter();
                 break;
             case 'fastify':
                 this.adapter = new FastifyAdapter();
+                break;
+            case 'native':
+                this.adapter = new NativeAdapter();
                 break;
             default:
                 throw new Error(`Framework não suportado: ${framework}`);

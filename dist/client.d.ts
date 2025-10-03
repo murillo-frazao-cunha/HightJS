@@ -1,4 +1,4 @@
 export { Link } from './components/Link';
-export { RouteConfig } from "./types";
+export { RouteConfig, Metadata } from "./types";
 export { router } from './client/clientRouter';
 export { useRouter, usePathname, useSearchParams, RouterProvider } from './client/routerContext';

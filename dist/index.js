@@ -36,7 +36,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createFastifyApp = exports.createExpressApp = exports.FrameworkAdapterFactory = exports.FastifyAdapter = exports.ExpressAdapter = exports.HightJSResponse = exports.HightJSRequest = void 0;
+exports.app = exports.FrameworkAdapterFactory = exports.FastifyAdapter = exports.ExpressAdapter = exports.HightJSResponse = exports.HightJSRequest = void 0;
 exports.default = hweb;
 const path_1 = __importDefault(require("path"));
 const fs_1 = __importDefault(require("fs"));
@@ -59,8 +59,7 @@ var factory_2 = require("./adapters/factory");
 Object.defineProperty(exports, "FrameworkAdapterFactory", { enumerable: true, get: function () { return factory_2.FrameworkAdapterFactory; } });
 // Exporta os helpers para facilitar integração
 var helpers_1 = require("./helpers");
-Object.defineProperty(exports, "createExpressApp", { enumerable: true, get: function () { return helpers_1.createExpressApp; } });
-Object.defineProperty(exports, "createFastifyApp", { enumerable: true, get: function () { return helpers_1.createFastifyApp; } });
+Object.defineProperty(exports, "app", { enumerable: true, get: function () { return helpers_1.app; } });
 // Exporta o sistema de autenticação
 // Função para gerar o arquivo de entrada para o esbuild
 function createEntryFile(projectDir, routes) {
@@ -136,6 +135,36 @@ function hweb(options) {
     const userWebDir = path_1.default.join(dir, 'src', 'web');
     const userWebRoutesDir = path_1.default.join(userWebDir, 'routes');
     const userBackendRoutesDir = path_1.default.join(userWebDir, 'backend', 'routes');
+    /**
+     * Executa middlewares sequencialmente e depois o handler final
+     * @param middlewares Array de middlewares para executar
+     * @param finalHandler Handler final da rota
+     * @param request Requisição do HightJS
+     * @param params Parâmetros da rota
+     * @returns Resposta do middleware ou handler final
+     */
+    async function executeMiddlewareChain(middlewares, finalHandler, request, params) {
+        if (!middlewares || middlewares.length === 0) {
+            // Não há middlewares, executa diretamente o handler final
+            return await finalHandler(request, params);
+        }
+        let currentIndex = 0;
+        // Função next que será chamada pelos middlewares
+        const next = async () => {
+            if (currentIndex < middlewares.length) {
+                // Ainda há middlewares para executar
+                const currentMiddleware = middlewares[currentIndex];
+                currentIndex++;
+                return await currentMiddleware(request, params, next);
+            }
+            else {
+                // Todos os middlewares foram executados, chama o handler final
+                return await finalHandler(request, params);
+            }
+        };
+        // Inicia a cadeia de execução
+        return await next();
+    }
     let frontendRoutes = [];
     let hotReloadManager = null;
     let entryPoint;
@@ -182,6 +211,24 @@ function hweb(options) {
                 (0, builder_1.watch)(entryPoint, outfile, hotReloadManager).catch(err => {
                     console_1.default.error(`Erro ao iniciar o watch`, err);
                 });
+            }
+        },
+        executeInstrumentation: () => {
+            // verificar se dir/src/instrumentation.(tsx/jsx/js/ts) existe com regex
+            const instrumentationFile = fs_1.default.readdirSync(path_1.default.join(dir, 'src')).find(file => /^hightweb\.(tsx|jsx|js|ts)$/.test(file));
+            if (instrumentationFile) {
+                const instrumentationPath = path_1.default.join(dir, 'src', instrumentationFile);
+                // dar require, e executar a função principal do arquivo
+                const instrumentation = require(instrumentationPath);
+                if (typeof instrumentation === 'function') {
+                    instrumentation();
+                }
+                else if (typeof instrumentation.default === 'function') {
+                    instrumentation.default();
+                }
+                else {
+                    console_1.default.warn(`O arquivo de instrumentação ${instrumentationFile} não exporta uma função padrão.`);
+                }
             }
         },
         getRequestHandler: () => {
@@ -236,6 +283,10 @@ function hweb(options) {
                             const fileContent = fs_1.default.readFileSync(filePath);
                             genericRes.send(fileContent);
                         }
+                        else if (adapter.type === 'native') {
+                            const fileContent = fs_1.default.readFileSync(filePath);
+                            genericRes.send(fileContent);
+                        }
                         return;
                     }
                 }
@@ -259,14 +310,19 @@ function hweb(options) {
                             const fileContent = fs_1.default.readFileSync(filePath);
                             genericRes.send(fileContent);
                         }
+                        else if (adapter.type === 'native') {
+                            const fileContent = fs_1.default.readFileSync(filePath);
+                            genericRes.send(fileContent);
+                        }
                         return;
                     }
                 }
                 // 4. Verifica se é um arquivo do React (node_modules)
                 if (pathname === '/hweb-react/react.js') {
                     const reactPath = dev
-                        ? path_1.default.join(dir, 'node_modules/react/umd/react.development.js')
-                        : path_1.default.join(dir, 'node_modules/react/umd/react.production.min.js');
+                        ? path_1.default.join(dir, 'node_modules/react/cjs/react.development.js')
+                        : path_1.default.join(dir, 'node_modules/react/cjs/react.production.min.js');
+                    console.log(reactPath);
                     if (fs_1.default.existsSync(reactPath)) {
                         genericRes.header('Content-Type', 'application/javascript');
                         if (adapter.type === 'express') {
@@ -276,19 +332,27 @@ function hweb(options) {
                             const fileContent = fs_1.default.readFileSync(reactPath);
                             genericRes.send(fileContent);
                         }
+                        else if (adapter.type === 'native') {
+                            const fileContent = fs_1.default.readFileSync(reactPath);
+                            genericRes.send(fileContent);
+                        }
                         return;
                     }
                 }
                 if (pathname === '/hweb-react/react-dom.js') {
                     const reactDomPath = dev
-                        ? path_1.default.join(dir, 'node_modules/react-dom/umd/react-dom.development.js')
-                        : path_1.default.join(dir, 'node_modules/react-dom/umd/react-dom.production.min.js');
+                        ? path_1.default.join(dir, 'node_modules/react-dom/cjs/react-dom.development.js')
+                        : path_1.default.join(dir, 'node_modules/react-dom/cjs/react-dom.production.min.js');
                     if (fs_1.default.existsSync(reactDomPath)) {
                         genericRes.header('Content-Type', 'application/javascript');
                         if (adapter.type === 'express') {
                             res.sendFile(reactDomPath);
                         }
                         else if (adapter.type === 'fastify') {
+                            const fileContent = fs_1.default.readFileSync(reactDomPath);
+                            genericRes.send(fileContent);
+                        }
+                        else if (adapter.type === 'native') {
                             const fileContent = fs_1.default.readFileSync(reactDomPath);
                             genericRes.send(fileContent);
                         }
@@ -302,7 +366,8 @@ function hweb(options) {
                         const handler = backendMatch.route[method];
                         if (handler) {
                             const hwebReq = new http_1.HightJSRequest(genericReq);
-                            const hwebRes = await handler(hwebReq, backendMatch.params);
+                            // Executa middlewares e depois o handler final
+                            const hwebRes = await executeMiddlewareChain(backendMatch.route.middleware, handler, hwebReq, backendMatch.params);
                             // Aplica a resposta usando o adapter correto
                             hwebRes._applyTo(genericRes);
                             return;

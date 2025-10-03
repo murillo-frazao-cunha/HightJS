@@ -199,6 +199,63 @@ function findMatchingRoute(pathname) {
 // --- Roteamento do Backend ---
 // Guarda todas as rotas de API encontradas
 let allBackendRoutes = [];
+// Cache de middlewares carregados por diretório
+let loadedMiddlewares = new Map();
+/**
+ * Carrega middlewares de um diretório específico
+ * @param dir O diretório onde procurar por middleware.ts
+ * @returns Array de middlewares encontrados
+ */
+function loadMiddlewareFromDirectory(dir) {
+    const middlewares = [];
+    // Procura por middleware.ts ou middleware.tsx
+    const middlewarePath = path_1.default.join(dir, 'middleware.ts');
+    const middlewarePathTsx = path_1.default.join(dir, 'middleware.tsx');
+    const middlewareFile = fs_1.default.existsSync(middlewarePath) ? middlewarePath :
+        fs_1.default.existsSync(middlewarePathTsx) ? middlewarePathTsx : null;
+    if (middlewareFile) {
+        try {
+            const absolutePath = path_1.default.resolve(middlewareFile);
+            clearRequireCache(absolutePath);
+            const middlewareModule = require(middlewareFile);
+            // Suporte para export default (função única) ou export { middleware1, middleware2 }
+            if (typeof middlewareModule.default === 'function') {
+                middlewares.push(middlewareModule.default);
+            }
+            else if (middlewareModule.default && Array.isArray(middlewareModule.default)) {
+                middlewares.push(...middlewareModule.default);
+            }
+            else {
+                // Procura por exports nomeados que sejam funções
+                Object.keys(middlewareModule).forEach(key => {
+                    if (key !== 'default' && typeof middlewareModule[key] === 'function') {
+                        middlewares.push(middlewareModule[key]);
+                    }
+                });
+            }
+        }
+        catch (error) {
+            console_1.default.error(`Erro ao carregar middleware ${middlewareFile}:`, error);
+        }
+    }
+    return middlewares;
+}
+/**
+ * Coleta middlewares do diretório específico da rota (não herda dos pais)
+ * @param routeFilePath Caminho completo do arquivo de rota
+ * @param backendRoutesDir Diretório raiz das rotas de backend
+ * @returns Array com middlewares apenas do diretório da rota
+ */
+function collectMiddlewaresForRoute(routeFilePath, backendRoutesDir) {
+    const relativePath = path_1.default.relative(backendRoutesDir, routeFilePath);
+    const routeDir = path_1.default.dirname(path_1.default.join(backendRoutesDir, relativePath));
+    // Carrega middlewares APENAS do diretório específico da rota (não herda dos pais)
+    if (!loadedMiddlewares.has(routeDir)) {
+        const middlewares = loadMiddlewareFromDirectory(routeDir);
+        loadedMiddlewares.set(routeDir, middlewares);
+    }
+    return loadedMiddlewares.get(routeDir) || [];
+}
 /**
  * Carrega dinamicamente todas as rotas de API do diretório de backend.
  * @param backendRoutesDir O diretório onde as rotas de API estão localizadas.
@@ -209,15 +266,30 @@ function loadBackendRoutes(backendRoutesDir) {
         allBackendRoutes = [];
         return;
     }
+    // Limpa cache de middlewares para recarregar
+    loadedMiddlewares.clear();
     const files = fs_1.default.readdirSync(backendRoutesDir, { recursive: true, encoding: 'utf-8' });
-    const routeFiles = files.filter(file => file.endsWith('.ts') || file.endsWith('.tsx'));
+    const routeFiles = files.filter(file => {
+        const isTypeScript = file.endsWith('.ts') || file.endsWith('.tsx');
+        const isNotMiddleware = !path_1.default.basename(file).startsWith('middleware');
+        return isTypeScript && isNotMiddleware;
+    });
     const loaded = [];
     for (const file of routeFiles) {
         const filePath = path_1.default.join(backendRoutesDir, file);
         try {
             const routeModule = require(filePath);
             if (routeModule.default && routeModule.default.pattern) {
-                loaded.push(routeModule.default);
+                const routeConfig = { ...routeModule.default };
+                // Se a rota NÃO tem a propriedade middleware definida, carrega os da pasta
+                if (!routeConfig.hasOwnProperty('middleware')) {
+                    const folderMiddlewares = collectMiddlewaresForRoute(filePath, backendRoutesDir);
+                    if (folderMiddlewares.length > 0) {
+                        routeConfig.middleware = folderMiddlewares;
+                    }
+                }
+                // Se tem middleware definido (mesmo que seja []), usa só esses (não adiciona os da pasta)
+                loaded.push(routeConfig);
             }
         }
         catch (error) {

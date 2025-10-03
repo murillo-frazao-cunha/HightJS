@@ -11,7 +11,7 @@ export declare class FrameworkAdapterFactory {
     /**
      * Força o uso de um framework específico
      */
-    static setFramework(framework: 'express' | 'fastify'): void;
+    static setFramework(framework: 'express' | 'fastify' | 'native'): void;
     /**
      * Reset do adapter (útil para testes)
      */
