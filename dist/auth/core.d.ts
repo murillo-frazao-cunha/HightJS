@@ -1,5 +1,5 @@
 import { HightJSRequest, HightJSResponse } from '../api/http';
-import type { AuthConfig, User, Session } from './types';
+import type { AuthConfig, Session } from './types';
 export declare class HWebAuth {
     private config;
     private sessionManager;
@@ -7,10 +7,7 @@ export declare class HWebAuth {
     /**
      * Middleware para adicionar autenticação às rotas
      */
-    middleware(req: HightJSRequest): Promise<{
-        session: Session | null;
-        user: User | null;
-    }>;
+    private middleware;
     /**
      * Autentica um usuário com credenciais
      */
@@ -30,13 +27,6 @@ export declare class HWebAuth {
      * Verifica se o usuário está autenticado
      */
     isAuthenticated(req: HightJSRequest): Promise<boolean>;
-    /**
-     * Middleware para proteger rotas (require authentication)
-     */
-    requireAuth(req: HightJSRequest): Promise<{
-        user: User;
-        session: Session;
-    } | HightJSResponse>;
     /**
      * Cria resposta com cookie de autenticação - Secure implementation
      */

@@ -22,7 +22,7 @@ export class HWebAuth {
     /**
      * Middleware para adicionar autenticação às rotas
      */
-    async middleware(req: HightJSRequest): Promise<{ session: Session | null; user: User | null }> {
+    private async middleware(req: HightJSRequest): Promise<{ session: Session | null; user: User | null }> {
         const token = this.getTokenFromRequest(req);
 
         if (!token) {
@@ -103,18 +103,6 @@ export class HWebAuth {
         return session !== null;
     }
 
-    /**
-     * Middleware para proteger rotas (require authentication)
-     */
-    async requireAuth(req: HightJSRequest): Promise<{ user: User; session: Session } | HightJSResponse> {
-        const { session, user } = await this.middleware(req);
-
-        if (!session || !user) {
-            return HightJSResponse.unauthorized('Authentication required');
-        }
-
-        return { user, session };
-    }
 
     /**
      * Cria resposta com cookie de autenticação - Secure implementation

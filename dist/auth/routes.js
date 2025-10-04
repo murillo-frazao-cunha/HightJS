@@ -40,8 +40,6 @@ function createAuthRoutes(config) {
                     return http_1.HightJSResponse.json({ error: 'Route not found' }, { status: 404 });
             }
         },
-        // Middleware para proteger rotas
-        requireAuth: (req) => auth.requireAuth(req),
         // Instância do auth para uso manual
         auth
     };

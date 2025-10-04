@@ -12,9 +12,5 @@ export declare function createAuthRoutes(config: AuthConfig): {
     POST(req: HightJSRequest, params: {
         [key: string]: string;
     }): Promise<any>;
-    requireAuth: (req: HightJSRequest) => Promise<HightJSResponse | {
-        user: import("./types").User;
-        session: import("./types").Session;
-    }>;
     auth: HWebAuth;
 };

@@ -87,16 +87,6 @@ class HWebAuth {
         return session !== null;
     }
     /**
-     * Middleware para proteger rotas (require authentication)
-     */
-    async requireAuth(req) {
-        const { session, user } = await this.middleware(req);
-        if (!session || !user) {
-            return http_1.HightJSResponse.unauthorized('Authentication required');
-        }
-        return { user, session };
-    }
-    /**
      * Cria resposta com cookie de autenticação - Secure implementation
      */
     createAuthResponse(token, data) {

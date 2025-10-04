@@ -50,8 +50,6 @@ export function createAuthRoutes(config: AuthConfig) {
             }
         },
 
-        // Middleware para proteger rotas
-        requireAuth: (req: HightJSRequest) => auth.requireAuth(req),
 
         // Instância do auth para uso manual
         auth
