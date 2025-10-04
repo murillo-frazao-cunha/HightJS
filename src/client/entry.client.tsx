@@ -264,7 +264,9 @@ function DevIndicator() {
             document.removeEventListener('mousedown', handleClickOutside);
         };
     }, [isMenuOpen]);
-
+    const onclick = () => {
+        alert("você clicou")
+    }
     return (
         <div ref={indicatorRef} style={getIndicatorStyle()} onMouseDown={handleMouseDown} title="Modo Dev HightJS">
             H
@@ -282,9 +284,9 @@ function DevIndicator() {
                     ...getMenuPositionStyle(),
                 }}>
                     <ul style={{ listStyle: 'none', margin: 0, padding: 0, zIndex: 10000 }}>
-                        <li style={{ padding: '8px 16px', cursor: 'pointer' }} onClick={() => alert('Opção 1 clicada!')}>Ver Logs</li>
-                        <li style={{ padding: '8px 16px', cursor: 'pointer' }} onClick={() => alert('Opção 2 clicada!')}>Limpar Cache</li>
-                        <li style={{ padding: '8px 16px', cursor: 'pointer' }} onClick={() => alert('Opção 3 clicada!')}>Recarregar</li>
+                        <li style={{ padding: '8px 16px', cursor: 'pointer' }} onClick={onclick}>Ver Logs</li>
+                        <li style={{ padding: '8px 16px', cursor: 'pointer' }} onClick={onclick}>Limpar Cache</li>
+                        <li style={{ padding: '8px 16px', cursor: 'pointer' }} onClick={onclick}>Recarregar</li>
                     </ul>
                 </div>
             )}

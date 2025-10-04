@@ -253,6 +253,9 @@ function DevIndicator() {
             document.removeEventListener('mousedown', handleClickOutside);
         };
     }, [isMenuOpen]);
+    const onclick = () => {
+        alert("você clicou");
+    };
     return ((0, jsx_runtime_1.jsxs)("div", { ref: indicatorRef, style: getIndicatorStyle(), onMouseDown: handleMouseDown, title: "Modo Dev HightJS", children: ["H", isMenuOpen && ((0, jsx_runtime_1.jsx)("div", { style: {
                     position: 'absolute',
                     background: 'white',
@@ -264,7 +267,7 @@ function DevIndicator() {
                     fontSize: 14,
                     fontWeight: 'normal',
                     ...getMenuPositionStyle(),
-                }, children: (0, jsx_runtime_1.jsxs)("ul", { style: { listStyle: 'none', margin: 0, padding: 0, zIndex: 10000 }, children: [(0, jsx_runtime_1.jsx)("li", { style: { padding: '8px 16px', cursor: 'pointer' }, onClick: () => alert('Opção 1 clicada!'), children: "Ver Logs" }), (0, jsx_runtime_1.jsx)("li", { style: { padding: '8px 16px', cursor: 'pointer' }, onClick: () => alert('Opção 2 clicada!'), children: "Limpar Cache" }), (0, jsx_runtime_1.jsx)("li", { style: { padding: '8px 16px', cursor: 'pointer' }, onClick: () => alert('Opção 3 clicada!'), children: "Recarregar" })] }) }))] }));
+                }, children: (0, jsx_runtime_1.jsxs)("ul", { style: { listStyle: 'none', margin: 0, padding: 0, zIndex: 10000 }, children: [(0, jsx_runtime_1.jsx)("li", { style: { padding: '8px 16px', cursor: 'pointer' }, onClick: onclick, children: "Ver Logs" }), (0, jsx_runtime_1.jsx)("li", { style: { padding: '8px 16px', cursor: 'pointer' }, onClick: onclick, children: "Limpar Cache" }), (0, jsx_runtime_1.jsx)("li", { style: { padding: '8px 16px', cursor: 'pointer' }, onClick: onclick, children: "Recarregar" })] }) }))] }));
 }
 // --- Inicialização do Cliente (CSR - Client-Side Rendering) ---
 function initializeClient() {
