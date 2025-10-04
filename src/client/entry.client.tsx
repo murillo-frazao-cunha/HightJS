@@ -126,7 +126,6 @@ const DEV_INDICATOR_CORNERS = [
 
 function DevIndicator() {
     const [corner, setCorner] = useState(3); // Canto atual (0-3)
-    const [isMenuOpen, setIsMenuOpen] = useState(false); // Estado do menu
     const [isDragging, setIsDragging] = useState(false); // Estado de arrastar
 
     // Posição visual do indicador durante o arraste
@@ -198,7 +197,6 @@ function DevIndicator() {
         // Diferencia clique de arrastar (threshold de 5px)
         if (!dragStartRef.current.moved && Math.hypot(deltaX, deltaY) > 5) {
             dragStartRef.current.moved = true;
-            setIsMenuOpen(false); // Fecha o menu se começar a arrastar
         }
 
         if (dragStartRef.current.moved) {
@@ -229,9 +227,6 @@ function DevIndicator() {
                 Math.hypot(w - clientX, h - clientY), // BR
             ];
             setCorner(dists.indexOf(Math.min(...dists)));
-        } else {
-            // Se não moveu, foi um clique: abre/fecha o menu
-            setIsMenuOpen(prev => !prev);
         }
 
         dragStartRef.current = null;
@@ -249,47 +244,10 @@ function DevIndicator() {
         };
     }, [isDragging, handleMouseMove, handleMouseUp]);
 
-    // Fecha o menu ao clicar fora
-    useEffect(() => {
-        if (!isMenuOpen) return;
 
-        const handleClickOutside = (event: MouseEvent) => {
-            if (indicatorRef.current && !indicatorRef.current.contains(event.target as Node)) {
-                setIsMenuOpen(false);
-            }
-        };
-
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => {
-            document.removeEventListener('mousedown', handleClickOutside);
-        };
-    }, [isMenuOpen]);
-    const onclick = () => {
-        alert("você clicou")
-    }
     return (
         <div ref={indicatorRef} style={getIndicatorStyle()} onMouseDown={handleMouseDown} title="Modo Dev HightJS">
             H
-            {isMenuOpen && (
-                <div style={{
-                    position: 'absolute',
-                    background: 'white',
-                    borderRadius: 8,
-                    boxShadow: '0 4px 15px rgba(0,0,0,0.2)',
-                    minWidth: 150,
-                    padding: '8px 0',
-                    color: '#333',
-                    fontSize: 14,
-                    fontWeight: 'normal',
-                    ...getMenuPositionStyle(),
-                }}>
-                    <ul style={{ listStyle: 'none', margin: 0, padding: 0, zIndex: 10000 }}>
-                        <li style={{ padding: '8px 16px', cursor: 'pointer' }} onClick={onclick}>Ver Logs</li>
-                        <li style={{ padding: '8px 16px', cursor: 'pointer' }} onClick={onclick}>Limpar Cache</li>
-                        <li style={{ padding: '8px 16px', cursor: 'pointer' }} onClick={onclick}>Recarregar</li>
-                    </ul>
-                </div>
-            )}
         </div>
     );
 }

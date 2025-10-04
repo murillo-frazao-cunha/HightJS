@@ -130,7 +130,6 @@ const DEV_INDICATOR_CORNERS = [
 ];
 function DevIndicator() {
     const [corner, setCorner] = (0, react_1.useState)(3); // Canto atual (0-3)
-    const [isMenuOpen, setIsMenuOpen] = (0, react_1.useState)(false); // Estado do menu
     const [isDragging, setIsDragging] = (0, react_1.useState)(false); // Estado de arrastar
     // Posição visual do indicador durante o arraste
     const [position, setPosition] = (0, react_1.useState)({ top: 0, left: 0 });
@@ -193,7 +192,6 @@ function DevIndicator() {
         // Diferencia clique de arrastar (threshold de 5px)
         if (!dragStartRef.current.moved && Math.hypot(deltaX, deltaY) > 5) {
             dragStartRef.current.moved = true;
-            setIsMenuOpen(false); // Fecha o menu se começar a arrastar
         }
         if (dragStartRef.current.moved) {
             setPosition(prevPos => ({
@@ -222,10 +220,6 @@ function DevIndicator() {
             ];
             setCorner(dists.indexOf(Math.min(...dists)));
         }
-        else {
-            // Se não moveu, foi um clique: abre/fecha o menu
-            setIsMenuOpen(prev => !prev);
-        }
         dragStartRef.current = null;
     }, [isDragging]);
     // Adiciona e remove listeners globais
@@ -239,35 +233,7 @@ function DevIndicator() {
             window.removeEventListener('mouseup', handleMouseUp);
         };
     }, [isDragging, handleMouseMove, handleMouseUp]);
-    // Fecha o menu ao clicar fora
-    (0, react_1.useEffect)(() => {
-        if (!isMenuOpen)
-            return;
-        const handleClickOutside = (event) => {
-            if (indicatorRef.current && !indicatorRef.current.contains(event.target)) {
-                setIsMenuOpen(false);
-            }
-        };
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => {
-            document.removeEventListener('mousedown', handleClickOutside);
-        };
-    }, [isMenuOpen]);
-    const onclick = () => {
-        alert("você clicou");
-    };
-    return ((0, jsx_runtime_1.jsxs)("div", { ref: indicatorRef, style: getIndicatorStyle(), onMouseDown: handleMouseDown, title: "Modo Dev HightJS", children: ["H", isMenuOpen && ((0, jsx_runtime_1.jsx)("div", { style: {
-                    position: 'absolute',
-                    background: 'white',
-                    borderRadius: 8,
-                    boxShadow: '0 4px 15px rgba(0,0,0,0.2)',
-                    minWidth: 150,
-                    padding: '8px 0',
-                    color: '#333',
-                    fontSize: 14,
-                    fontWeight: 'normal',
-                    ...getMenuPositionStyle(),
-                }, children: (0, jsx_runtime_1.jsxs)("ul", { style: { listStyle: 'none', margin: 0, padding: 0, zIndex: 10000 }, children: [(0, jsx_runtime_1.jsx)("li", { style: { padding: '8px 16px', cursor: 'pointer' }, onClick: onclick, children: "Ver Logs" }), (0, jsx_runtime_1.jsx)("li", { style: { padding: '8px 16px', cursor: 'pointer' }, onClick: onclick, children: "Limpar Cache" }), (0, jsx_runtime_1.jsx)("li", { style: { padding: '8px 16px', cursor: 'pointer' }, onClick: onclick, children: "Recarregar" })] }) }))] }));
+    return ((0, jsx_runtime_1.jsx)("div", { ref: indicatorRef, style: getIndicatorStyle(), onMouseDown: handleMouseDown, title: "Modo Dev HightJS", children: "H" }));
 }
 // --- Inicialização do Cliente (CSR - Client-Side Rendering) ---
 function initializeClient() {
