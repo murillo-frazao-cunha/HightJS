@@ -80,28 +80,31 @@ export class HotReloadManager {
             ignoreInitial: true
         });
 
-        frontendWatcher.on('change', (filePath) => {
+        frontendWatcher.on('change', async (filePath) => {
             Console.logWithout(Levels.INFO, `🔄 Frontend alterado: ${filePath}`);
-
-            // Limpa o cache do arquivo alterado para recarregar metadados
             clearFileCache(filePath);
-
-            this.frontendChangeCallback?.();
-            this.notifyClients('frontend-reload');
+            // Checa build do arquivo alterado
+            const result = await this.checkFrontendBuild(filePath);
+            if (result.error) {
+                this.notifyClients('frontend-error', { file: filePath, error: result.error });
+            } else {
+                this.frontendChangeCallback?.();
+                this.notifyClients('frontend-reload');
+            }
         });
-
-        frontendWatcher.on('add', (filePath) => {
+        frontendWatcher.on('add', async (filePath) => {
             Console.info(`➕ Novo arquivo frontend: ${path.basename(filePath)}`);
-            this.frontendChangeCallback?.();
-            this.notifyClients('frontend-reload');
+            const result = await this.checkFrontendBuild(filePath);
+            if (result.error) {
+                this.notifyClients('frontend-error', { file: filePath, error: result.error });
+            } else {
+                this.frontendChangeCallback?.();
+                this.notifyClients('frontend-reload');
+            }
         });
-
         frontendWatcher.on('unlink', (filePath) => {
             Console.info(`🗑️ Arquivo frontend removido: ${path.basename(filePath)}`);
-
-            // Limpa o cache do arquivo removido
             clearFileCache(filePath);
-
             this.frontendChangeCallback?.();
             this.notifyClients('frontend-reload');
         });
@@ -259,5 +262,28 @@ export class HotReloadManager {
     // Método para registrar callback de mudança de frontend
     onFrontendChange(callback: () => void) {
         this.frontendChangeCallback = callback;
+    }
+
+    private async checkFrontendBuild(filePath: string) {
+        // Usa ts-node para checar erros de compilação do arquivo alterado
+        const tsNodePath = require.resolve('ts-node');
+        const { spawn } = require('child_process');
+        return new Promise<{ error?: string }>((resolve) => {
+            const proc = spawn(process.execPath, [tsNodePath, '--transpile-only', filePath], {
+                cwd: this.projectDir,
+                env: process.env,
+            });
+            let errorMsg = '';
+            proc.stderr.on('data', (data: Buffer) => {
+                errorMsg += data.toString();
+            });
+            proc.on('close', (code: number) => {
+                if (code !== 0 && errorMsg) {
+                    resolve({ error: errorMsg });
+                } else {
+                    resolve({});
+                }
+            });
+        });
     }
 }

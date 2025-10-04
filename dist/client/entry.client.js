@@ -269,6 +269,31 @@ function DevIndicator() {
                     ...getMenuPositionStyle(),
                 }, children: (0, jsx_runtime_1.jsxs)("ul", { style: { listStyle: 'none', margin: 0, padding: 0 }, children: [(0, jsx_runtime_1.jsx)("li", { style: { padding: '8px 16px', cursor: 'pointer' }, onClick: () => alert('Opção 1 clicada!'), children: "Ver Logs" }), (0, jsx_runtime_1.jsx)("li", { style: { padding: '8px 16px', cursor: 'pointer' }, onClick: () => alert('Opção 2 clicada!'), children: "Limpar Cache" }), (0, jsx_runtime_1.jsx)("li", { style: { padding: '8px 16px', cursor: 'pointer' }, onClick: () => alert('Opção 3 clicada!'), children: "Recarregar" })] }) }))] }));
 }
+// --- Overlay de Erro de Build ---
+function BuildErrorOverlay({ error }) {
+    return ((0, jsx_runtime_1.jsx)("div", { style: {
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100vw',
+            height: '100vh',
+            background: 'rgba(40,0,0,0.92)',
+            color: '#fff',
+            zIndex: 99999,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontFamily: 'monospace',
+            padding: 32,
+        }, children: (0, jsx_runtime_1.jsxs)("div", { style: {
+                background: '#2d0a0a',
+                borderRadius: 12,
+                padding: 24,
+                maxWidth: 700,
+                boxShadow: '0 4px 32px #000',
+            }, children: [(0, jsx_runtime_1.jsx)("h2", { style: { color: '#ffb300', marginBottom: 16 }, children: "Erro de Build (Frontend)" }), (0, jsx_runtime_1.jsx)("div", { style: { fontWeight: 'bold', marginBottom: 8 }, children: error.file }), (0, jsx_runtime_1.jsx)("pre", { style: { whiteSpace: 'pre-wrap', fontSize: 15, color: '#fffbe6' }, children: error.error }), (0, jsx_runtime_1.jsx)("div", { style: { marginTop: 24, color: '#ccc', fontSize: 13 }, children: "Corrija o erro acima para continuar. O reload ser\u00E1 feito automaticamente quando o erro sumir." })] }) }));
+}
 // --- Inicialização do Cliente (CSR - Client-Side Rendering) ---
 function initializeClient() {
     const initialData = window.__HWEB_INITIAL_DATA__;
@@ -287,10 +312,38 @@ function initializeClient() {
         console.error('[hweb] Container #root não encontrado.');
         return;
     }
+    let buildError = null;
+    let setBuildError = null;
+    // Adiciona WebSocket para receber erros de build do hotReload
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        try {
+            const ws = new window.WebSocket('ws://localhost:3000/hweb-hotreload/');
+            ws.onmessage = (event) => {
+                const msg = JSON.parse(event.data);
+                if (msg.type === 'frontend-error' && msg.data) {
+                    buildError = msg.data;
+                    if (setBuildError)
+                        setBuildError(buildError);
+                }
+                if (msg.type === 'frontend-reload') {
+                    buildError = null;
+                    if (setBuildError)
+                        setBuildError(null);
+                    window.location.reload();
+                }
+            };
+        }
+        catch { }
+    }
     try {
         // Usar createRoot para render inicial (CSR)
         const root = (0, client_1.createRoot)(container);
-        root.render((0, jsx_runtime_1.jsx)(App, { componentMap: componentMap, routes: initialData.routes, initialComponentPath: initialData.initialComponentPath, initialParams: initialData.initialParams, layoutComponent: window.__HWEB_LAYOUT__ }));
+        function RootWrapper() {
+            const [err, setErr] = (0, react_1.useState)(buildError);
+            (0, react_1.useEffect)(() => { setBuildError = setErr; }, []);
+            return ((0, jsx_runtime_1.jsxs)(jsx_runtime_1.Fragment, { children: [(0, jsx_runtime_1.jsx)(App, { componentMap: componentMap, routes: initialData.routes, initialComponentPath: initialData.initialComponentPath, initialParams: initialData.initialParams, layoutComponent: window.__HWEB_LAYOUT__ }), err && (0, jsx_runtime_1.jsx)(BuildErrorOverlay, { error: err })] }));
+        }
+        root.render((0, jsx_runtime_1.jsx)(RootWrapper, {}));
     }
     catch (error) {
         console.error('[hweb] Erro ao renderizar aplicação:', error);

@@ -19,4 +19,5 @@ export declare class HotReloadManager {
     private clearBackendCache;
     onBackendApiChange(callback: () => void): void;
     onFrontendChange(callback: () => void): void;
+    private checkFrontendBuild;
 }
