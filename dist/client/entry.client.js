@@ -39,6 +39,9 @@ const client_1 = require("react-dom/client");
 const clientRouter_1 = require("./clientRouter");
 function App({ componentMap, routes, initialComponentPath, initialParams, layoutComponent }) {
     // Estado que guarda o componente a ser renderizado atualmente
+    if (process.env.NODE_ENV !== 'production') {
+        console.log('%c[HightJS] Modo de desenvolvimento ativo. Algumas funcionalidades podem estar limitadas.', 'color: orange; font-weight: bold;');
+    }
     const [CurrentPageComponent, setCurrentPageComponent] = (0, react_1.useState)(() => {
         // Se for a rota especial __404__, não busca no componentMap
         if (initialComponentPath === '__404__') {

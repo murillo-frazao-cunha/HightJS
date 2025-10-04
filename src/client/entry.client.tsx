@@ -14,6 +14,11 @@ interface AppProps {
 
 function App({ componentMap, routes, initialComponentPath, initialParams, layoutComponent }: AppProps) {
     // Estado que guarda o componente a ser renderizado atualmente
+
+    if(process.env.NODE_ENV !== 'production'){
+        console.log('%c[HightJS] Modo de desenvolvimento ativo. Algumas funcionalidades podem estar limitadas.', 'color: orange; font-weight: bold;');
+    }
+
     const [CurrentPageComponent, setCurrentPageComponent] = useState(() => {
         // Se for a rota especial __404__, não busca no componentMap
         if (initialComponentPath === '__404__') {
@@ -156,7 +161,7 @@ function initializeClient() {
 
 // Executa quando o DOM estiver pronto
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initializeClient);
+        document.addEventListener('DOMContentLoaded', initializeClient);
 } else {
     initializeClient();
 }

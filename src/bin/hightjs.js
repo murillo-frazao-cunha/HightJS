@@ -26,12 +26,13 @@ program
 // --- Comando START (Produção) ---
 program
     .command('start')
-    .description('Inicia a aplicação em modo de produção.')
+    .description('Inicia a aplicação em modo produção.')
     .option('-p, --port <number>', 'Especifica a porta para rodar', '3000')
     .option('-H, --hostname <string>', 'Especifica o hostname para rodar', '0.0.0.0')
+    .option('-f, --framework <string>', 'Especifica o framework a ser usado (native/express/fastify)', 'native')
     .action((options) => {
         const teste = require("../helpers");
-        const t = teste.default({ dev: false, port: options.port, hostname: options.hostname, framework: options.adapter });
+        const t = teste.default({ dev: false, port: options.port, hostname: options.hostname, framework: options.framework });
         t.init()
     });
 

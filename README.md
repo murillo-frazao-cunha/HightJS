@@ -47,7 +47,7 @@
 npm init -y
 npm install typescript --save-dev
 npx tsc --init
-npm install hightjs react react-dom ts-node
+npm install hightjs react@19 react-dom@19 ts-node
 npm install --save-dev @types/react
 ```
 
