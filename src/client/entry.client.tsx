@@ -15,10 +15,6 @@ interface AppProps {
 function App({ componentMap, routes, initialComponentPath, initialParams, layoutComponent }: AppProps) {
     // Estado que guarda o componente a ser renderizado atualmente
 
-    if(process.env.NODE_ENV !== 'production'){
-        console.log('%c[HightJS] Modo de desenvolvimento ativo. Algumas funcionalidades podem estar limitadas.', 'color: orange; font-weight: bold;');
-    }
-
     const [CurrentPageComponent, setCurrentPageComponent] = useState(() => {
         // Se for a rota especial __404__, não busca no componentMap
         if (initialComponentPath === '__404__') {
@@ -285,50 +281,13 @@ function DevIndicator() {
                     fontWeight: 'normal',
                     ...getMenuPositionStyle(),
                 }}>
-                    <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+                    <ul style={{ listStyle: 'none', margin: 0, padding: 0, zIndex: 10000 }}>
                         <li style={{ padding: '8px 16px', cursor: 'pointer' }} onClick={() => alert('Opção 1 clicada!')}>Ver Logs</li>
                         <li style={{ padding: '8px 16px', cursor: 'pointer' }} onClick={() => alert('Opção 2 clicada!')}>Limpar Cache</li>
                         <li style={{ padding: '8px 16px', cursor: 'pointer' }} onClick={() => alert('Opção 3 clicada!')}>Recarregar</li>
                     </ul>
                 </div>
             )}
-        </div>
-    );
-}
-
-// --- Overlay de Erro de Build ---
-function BuildErrorOverlay({ error }: { error: { file: string; error: string } }) {
-    return (
-        <div style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            width: '100vw',
-            height: '100vh',
-            background: 'rgba(40,0,0,0.92)',
-            color: '#fff',
-            zIndex: 99999,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontFamily: 'monospace',
-            padding: 32,
-        }}>
-            <div style={{
-                background: '#2d0a0a',
-                borderRadius: 12,
-                padding: 24,
-                maxWidth: 700,
-                boxShadow: '0 4px 32px #000',
-            }}>
-                <h2 style={{ color: '#ffb300', marginBottom: 16 }}>Erro de Build (Frontend)</h2>
-                <div style={{ fontWeight: 'bold', marginBottom: 8 }}>{error.file}</div>
-                <pre style={{ whiteSpace: 'pre-wrap', fontSize: 15, color: '#fffbe6' }}>{error.error}</pre>
-                <div style={{ marginTop: 24, color: '#ccc', fontSize: 13 }}>
-                    Corrija o erro acima para continuar. O reload será feito automaticamente quando o erro sumir.
-                </div>
-            </div>
         </div>
     );
 }
@@ -357,47 +316,19 @@ function initializeClient() {
         return;
     }
 
-    let buildError: { file: string; error: string } | null = null;
-    let setBuildError: ((err: any) => void) | null = null;
-    // Adiciona WebSocket para receber erros de build do hotReload
-    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-        try {
-            const ws = new window.WebSocket('ws://localhost:3000/hweb-hotreload/');
-            ws.onmessage = (event) => {
-                const msg = JSON.parse(event.data);
-                if (msg.type === 'frontend-error' && msg.data) {
-                    buildError = msg.data;
-                    if (setBuildError) setBuildError(buildError);
-                }
-                if (msg.type === 'frontend-reload') {
-                    buildError = null;
-                    if (setBuildError) setBuildError(null);
-                    window.location.reload();
-                }
-            };
-        } catch {}
-    }
-
     try {
         // Usar createRoot para render inicial (CSR)
         const root = createRoot(container);
-        function RootWrapper() {
-            const [err, setErr] = useState(buildError);
-            useEffect(() => { setBuildError = setErr; }, []);
-            return (
-                <>
-                    <App
-                        componentMap={componentMap}
-                        routes={initialData.routes}
-                        initialComponentPath={initialData.initialComponentPath}
-                        initialParams={initialData.initialParams}
-                        layoutComponent={(window as any).__HWEB_LAYOUT__}
-                    />
-                    {err && <BuildErrorOverlay error={err} />}
-                </>
-            );
-        }
-        root.render(<RootWrapper />);
+
+        root.render(
+            <App
+                componentMap={componentMap}
+                routes={initialData.routes}
+                initialComponentPath={initialData.initialComponentPath}
+                initialParams={initialData.initialParams}
+                layoutComponent={(window as any).__HWEB_LAYOUT__}
+            />
+        );
     } catch (error) {
         console.error('[hweb] Erro ao renderizar aplicação:', error);
     }
@@ -405,7 +336,7 @@ function initializeClient() {
 
 // Executa quando o DOM estiver pronto
 if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initializeClient);
+    document.addEventListener('DOMContentLoaded', initializeClient);
 } else {
     initializeClient();
 }
