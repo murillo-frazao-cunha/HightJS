@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, {useState, useEffect, useCallback, useRef} from 'react';
 import { createRoot } from 'react-dom/client';
 import { router } from './clientRouter';
 
@@ -117,76 +117,181 @@ function App({ componentMap, routes, initialComponentPath, initialParams, layout
     );
 }
 
-// --- Indicador de Desenvolvimento ---
+
+
+// --- Constantes de Configuração ---
 const DEV_INDICATOR_SIZE = 48;
 const DEV_INDICATOR_CORNERS = [
-    { top: 16, left: 16 }, // topo-esquerda
-    { top: 16, right: 16 }, // topo-direita
-    { bottom: 16, left: 16 }, // baixo-esquerda
-    { bottom: 16, right: 16 }, // baixo-direita
+    { top: 16, left: 16 },    // 0: topo-esquerda
+    { top: 16, right: 16 },   // 1: topo-direita
+    { bottom: 16, left: 16 }, // 2: baixo-esquerda
+    { bottom: 16, right: 16 },// 3: baixo-direita
 ];
 
 function DevIndicator() {
-    const [corner, setCorner] = useState(3); // default: bottom-right
-    const [dragging, setDragging] = useState(false);
-    const indicatorRef = React.useRef<HTMLDivElement>(null);
+    const [corner, setCorner] = useState(3); // Canto atual (0-3)
+    const [isMenuOpen, setIsMenuOpen] = useState(false); // Estado do menu
+    const [isDragging, setIsDragging] = useState(false); // Estado de arrastar
 
-    // Calcula o estilo baseado no canto
-    const style: React.CSSProperties = {
-        position: 'fixed',
-        zIndex: 9999,
-        width: DEV_INDICATOR_SIZE,
-        height: DEV_INDICATOR_SIZE,
-        borderRadius: '50%',
-        background: 'linear-gradient(135deg, #ffb300 60%, #fffbe6 100%)',
-        color: '#222',
-        fontWeight: 'bold',
-        fontSize: 28,
-        boxShadow: '0 2px 12px rgba(0,0,0,0.12)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        cursor: dragging ? 'grabbing' : 'grab',
-        userSelect: 'none',
-        transition: dragging ? 'none' : 'all 0.2s',
-        ...DEV_INDICATOR_CORNERS[corner],
+    // Posição visual do indicador durante o arraste
+    const [position, setPosition] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+
+    const indicatorRef = useRef<HTMLDivElement>(null);
+    const dragStartRef = useRef<{ x: number; y: number; moved: boolean } | null>(null);
+
+    // --- Estilos Dinâmicos ---
+    const getIndicatorStyle = (): React.CSSProperties => {
+        const baseStyle: React.CSSProperties = {
+            position: 'fixed',
+            zIndex: 9999,
+            width: DEV_INDICATOR_SIZE,
+            height: DEV_INDICATOR_SIZE,
+            borderRadius: '50%',
+            background: 'linear-gradient(135deg, #8e2de2, #4a00e0)', // Gradiente Roxo
+            color: 'white',
+            fontWeight: 'bold',
+            fontSize: 28,
+            boxShadow: '0 4px 15px rgba(0,0,0,0.2)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: isDragging ? 'grabbing' : 'grab',
+            userSelect: 'none',
+            transition: isDragging ? 'none' : 'all 0.3s ease-out', // Animação suave ao soltar
+        };
+
+        if (isDragging) {
+            return {
+                ...baseStyle,
+                top: position.top,
+                left: position.left,
+            };
+        }
+
+        return { ...baseStyle, ...DEV_INDICATOR_CORNERS[corner] };
     };
 
-    // Drag logic: move para o canto mais próximo ao soltar
-    const onMouseDown = (e: React.MouseEvent) => {
-        setDragging(true);
+    const getMenuPositionStyle = (): React.CSSProperties => {
+        // Posiciona o menu dependendo do canto
+        switch (corner) {
+            case 0: return { top: '110%', left: '0' }; // Top-Left
+            case 1: return { top: '110%', right: '0' }; // Top-Right
+            case 2: return { bottom: '110%', left: '0' }; // Bottom-Left
+            case 3: return { bottom: '110%', right: '0' }; // Bottom-Right
+            default: return {};
+        }
+    };
+
+    // --- Lógica de Eventos ---
+    const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
         e.preventDefault();
+        dragStartRef.current = { x: e.clientX, y: e.clientY, moved: false };
+        if (indicatorRef.current) {
+            const rect = indicatorRef.current.getBoundingClientRect();
+            setPosition({ top: rect.top, left: rect.left });
+        }
+        setIsDragging(true);
     };
-    const onMouseUp = (e: MouseEvent) => {
-        setDragging(false);
-        if (!indicatorRef.current) return;
-        const { clientX, clientY } = e;
-        const w = window.innerWidth, h = window.innerHeight;
-        // Calcula distâncias para cada canto
-        const dists = [
-            Math.hypot(clientX - 16, clientY - 16), // TL
-            Math.hypot(clientX - (w - 16), clientY - 16), // TR
-            Math.hypot(clientX - 16, clientY - (h - 16)), // BL
-            Math.hypot(clientX - (w - 16), clientY - (h - 16)), // BR
-        ];
-        setCorner(dists.indexOf(Math.min(...dists)));
-    };
-    React.useEffect(() => {
-        if (!dragging) return;
-        const onMove = (e: MouseEvent) => {
-            // Segue o mouse, mas não move visualmente (snap só ao soltar)
-        };
-        window.addEventListener('mousemove', onMove);
-        window.addEventListener('mouseup', onMouseUp);
+
+    const handleMouseMove = useCallback((e: MouseEvent) => {
+        if (!isDragging || !dragStartRef.current) return;
+
+        const deltaX = e.clientX - dragStartRef.current.x;
+        const deltaY = e.clientY - dragStartRef.current.y;
+
+        // Diferencia clique de arrastar (threshold de 5px)
+        if (!dragStartRef.current.moved && Math.hypot(deltaX, deltaY) > 5) {
+            dragStartRef.current.moved = true;
+            setIsMenuOpen(false); // Fecha o menu se começar a arrastar
+        }
+
+        if (dragStartRef.current.moved) {
+            setPosition(prevPos => ({
+                top: prevPos.top + deltaY,
+                left: prevPos.left + deltaX,
+            }));
+            // Atualiza a referência para o próximo movimento
+            dragStartRef.current.x = e.clientX;
+            dragStartRef.current.y = e.clientY;
+        }
+    }, [isDragging]);
+
+    const handleMouseUp = useCallback((e: MouseEvent) => {
+        if (!isDragging) return;
+        setIsDragging(false);
+
+        // Se moveu, calcula o canto mais próximo
+        if (dragStartRef.current?.moved) {
+            const { clientX, clientY } = e;
+            const w = window.innerWidth;
+            const h = window.innerHeight;
+
+            const dists = [
+                Math.hypot(clientX, clientY), // TL
+                Math.hypot(w - clientX, clientY), // TR
+                Math.hypot(clientX, h - clientY), // BL
+                Math.hypot(w - clientX, h - clientY), // BR
+            ];
+            setCorner(dists.indexOf(Math.min(...dists)));
+        } else {
+            // Se não moveu, foi um clique: abre/fecha o menu
+            setIsMenuOpen(prev => !prev);
+        }
+
+        dragStartRef.current = null;
+    }, [isDragging]);
+
+    // Adiciona e remove listeners globais
+    useEffect(() => {
+        if (isDragging) {
+            window.addEventListener('mousemove', handleMouseMove);
+            window.addEventListener('mouseup', handleMouseUp);
+        }
         return () => {
-            window.removeEventListener('mousemove', onMove);
-            window.removeEventListener('mouseup', onMouseUp);
+            window.removeEventListener('mousemove', handleMouseMove);
+            window.removeEventListener('mouseup', handleMouseUp);
         };
-    }, [dragging]);
+    }, [isDragging, handleMouseMove, handleMouseUp]);
+
+    // Fecha o menu ao clicar fora
+    useEffect(() => {
+        if (!isMenuOpen) return;
+
+        const handleClickOutside = (event: MouseEvent) => {
+            if (indicatorRef.current && !indicatorRef.current.contains(event.target as Node)) {
+                setIsMenuOpen(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [isMenuOpen]);
 
     return (
-        <div ref={indicatorRef} style={style} onMouseDown={onMouseDown} title="Modo Dev HightJS">
+        <div ref={indicatorRef} style={getIndicatorStyle()} onMouseDown={handleMouseDown} title="Modo Dev HightJS">
             H
+            {isMenuOpen && (
+                <div style={{
+                    position: 'absolute',
+                    background: 'white',
+                    borderRadius: 8,
+                    boxShadow: '0 4px 15px rgba(0,0,0,0.2)',
+                    minWidth: 150,
+                    padding: '8px 0',
+                    color: '#333',
+                    fontSize: 14,
+                    fontWeight: 'normal',
+                    ...getMenuPositionStyle(),
+                }}>
+                    <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+                        <li style={{ padding: '8px 16px', cursor: 'pointer' }} onClick={() => alert('Opção 1 clicada!')}>Ver Logs</li>
+                        <li style={{ padding: '8px 16px', cursor: 'pointer' }} onClick={() => alert('Opção 2 clicada!')}>Limpar Cache</li>
+                        <li style={{ padding: '8px 16px', cursor: 'pointer' }} onClick={() => alert('Opção 3 clicada!')}>Recarregar</li>
+                    </ul>
+                </div>
+            )}
         </div>
     );
 }

@@ -117,14 +117,157 @@ function App({ componentMap, routes, initialComponentPath, initialParams, layout
     // Renderiza o componente atual (sem Context, usa o router diretamente)
     const PageContent = (0, jsx_runtime_1.jsx)(CurrentPageComponent, { params: params });
     // SEMPRE usa o layout - se não existir, cria um wrapper padrão
-    if (layoutComponent) {
-        // Usa o layout personalizado do usuário
-        return react_1.default.createElement(layoutComponent, { children: PageContent });
-    }
-    else {
-        // Se não há layout personalizado, cria um wrapper básico mas SEMPRE envolve
-        return ((0, jsx_runtime_1.jsx)("div", { children: PageContent }));
-    }
+    const content = layoutComponent
+        ? react_1.default.createElement(layoutComponent, { children: PageContent })
+        : (0, jsx_runtime_1.jsx)("div", { children: PageContent });
+    // Adiciona o indicador de dev se não for produção
+    return ((0, jsx_runtime_1.jsxs)(jsx_runtime_1.Fragment, { children: [content, process.env.NODE_ENV !== 'production' && (0, jsx_runtime_1.jsx)(DevIndicator, {})] }));
+}
+// --- Constantes de Configuração ---
+const DEV_INDICATOR_SIZE = 48;
+const DEV_INDICATOR_CORNERS = [
+    { top: 16, left: 16 }, // 0: topo-esquerda
+    { top: 16, right: 16 }, // 1: topo-direita
+    { bottom: 16, left: 16 }, // 2: baixo-esquerda
+    { bottom: 16, right: 16 }, // 3: baixo-direita
+];
+function DevIndicator() {
+    const [corner, setCorner] = (0, react_1.useState)(3); // Canto atual (0-3)
+    const [isMenuOpen, setIsMenuOpen] = (0, react_1.useState)(false); // Estado do menu
+    const [isDragging, setIsDragging] = (0, react_1.useState)(false); // Estado de arrastar
+    // Posição visual do indicador durante o arraste
+    const [position, setPosition] = (0, react_1.useState)({ top: 0, left: 0 });
+    const indicatorRef = (0, react_1.useRef)(null);
+    const dragStartRef = (0, react_1.useRef)(null);
+    // --- Estilos Dinâmicos ---
+    const getIndicatorStyle = () => {
+        const baseStyle = {
+            position: 'fixed',
+            zIndex: 9999,
+            width: DEV_INDICATOR_SIZE,
+            height: DEV_INDICATOR_SIZE,
+            borderRadius: '50%',
+            background: 'linear-gradient(135deg, #8e2de2, #4a00e0)', // Gradiente Roxo
+            color: 'white',
+            fontWeight: 'bold',
+            fontSize: 28,
+            boxShadow: '0 4px 15px rgba(0,0,0,0.2)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: isDragging ? 'grabbing' : 'grab',
+            userSelect: 'none',
+            transition: isDragging ? 'none' : 'all 0.3s ease-out', // Animação suave ao soltar
+        };
+        if (isDragging) {
+            return {
+                ...baseStyle,
+                top: position.top,
+                left: position.left,
+            };
+        }
+        return { ...baseStyle, ...DEV_INDICATOR_CORNERS[corner] };
+    };
+    const getMenuPositionStyle = () => {
+        // Posiciona o menu dependendo do canto
+        switch (corner) {
+            case 0: return { top: '110%', left: '0' }; // Top-Left
+            case 1: return { top: '110%', right: '0' }; // Top-Right
+            case 2: return { bottom: '110%', left: '0' }; // Bottom-Left
+            case 3: return { bottom: '110%', right: '0' }; // Bottom-Right
+            default: return {};
+        }
+    };
+    // --- Lógica de Eventos ---
+    const handleMouseDown = (e) => {
+        e.preventDefault();
+        dragStartRef.current = { x: e.clientX, y: e.clientY, moved: false };
+        if (indicatorRef.current) {
+            const rect = indicatorRef.current.getBoundingClientRect();
+            setPosition({ top: rect.top, left: rect.left });
+        }
+        setIsDragging(true);
+    };
+    const handleMouseMove = (0, react_1.useCallback)((e) => {
+        if (!isDragging || !dragStartRef.current)
+            return;
+        const deltaX = e.clientX - dragStartRef.current.x;
+        const deltaY = e.clientY - dragStartRef.current.y;
+        // Diferencia clique de arrastar (threshold de 5px)
+        if (!dragStartRef.current.moved && Math.hypot(deltaX, deltaY) > 5) {
+            dragStartRef.current.moved = true;
+            setIsMenuOpen(false); // Fecha o menu se começar a arrastar
+        }
+        if (dragStartRef.current.moved) {
+            setPosition(prevPos => ({
+                top: prevPos.top + deltaY,
+                left: prevPos.left + deltaX,
+            }));
+            // Atualiza a referência para o próximo movimento
+            dragStartRef.current.x = e.clientX;
+            dragStartRef.current.y = e.clientY;
+        }
+    }, [isDragging]);
+    const handleMouseUp = (0, react_1.useCallback)((e) => {
+        if (!isDragging)
+            return;
+        setIsDragging(false);
+        // Se moveu, calcula o canto mais próximo
+        if (dragStartRef.current?.moved) {
+            const { clientX, clientY } = e;
+            const w = window.innerWidth;
+            const h = window.innerHeight;
+            const dists = [
+                Math.hypot(clientX, clientY), // TL
+                Math.hypot(w - clientX, clientY), // TR
+                Math.hypot(clientX, h - clientY), // BL
+                Math.hypot(w - clientX, h - clientY), // BR
+            ];
+            setCorner(dists.indexOf(Math.min(...dists)));
+        }
+        else {
+            // Se não moveu, foi um clique: abre/fecha o menu
+            setIsMenuOpen(prev => !prev);
+        }
+        dragStartRef.current = null;
+    }, [isDragging]);
+    // Adiciona e remove listeners globais
+    (0, react_1.useEffect)(() => {
+        if (isDragging) {
+            window.addEventListener('mousemove', handleMouseMove);
+            window.addEventListener('mouseup', handleMouseUp);
+        }
+        return () => {
+            window.removeEventListener('mousemove', handleMouseMove);
+            window.removeEventListener('mouseup', handleMouseUp);
+        };
+    }, [isDragging, handleMouseMove, handleMouseUp]);
+    // Fecha o menu ao clicar fora
+    (0, react_1.useEffect)(() => {
+        if (!isMenuOpen)
+            return;
+        const handleClickOutside = (event) => {
+            if (indicatorRef.current && !indicatorRef.current.contains(event.target)) {
+                setIsMenuOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [isMenuOpen]);
+    return ((0, jsx_runtime_1.jsxs)("div", { ref: indicatorRef, style: getIndicatorStyle(), onMouseDown: handleMouseDown, title: "Modo Dev HightJS", children: ["H", isMenuOpen && ((0, jsx_runtime_1.jsx)("div", { style: {
+                    position: 'absolute',
+                    background: 'white',
+                    borderRadius: 8,
+                    boxShadow: '0 4px 15px rgba(0,0,0,0.2)',
+                    minWidth: 150,
+                    padding: '8px 0',
+                    color: '#333',
+                    fontSize: 14,
+                    fontWeight: 'normal',
+                    ...getMenuPositionStyle(),
+                }, children: (0, jsx_runtime_1.jsxs)("ul", { style: { listStyle: 'none', margin: 0, padding: 0 }, children: [(0, jsx_runtime_1.jsx)("li", { style: { padding: '8px 16px', cursor: 'pointer' }, onClick: () => alert('Opção 1 clicada!'), children: "Ver Logs" }), (0, jsx_runtime_1.jsx)("li", { style: { padding: '8px 16px', cursor: 'pointer' }, onClick: () => alert('Opção 2 clicada!'), children: "Limpar Cache" }), (0, jsx_runtime_1.jsx)("li", { style: { padding: '8px 16px', cursor: 'pointer' }, onClick: () => alert('Opção 3 clicada!'), children: "Recarregar" })] }) }))] }));
 }
 // --- Inicialização do Cliente (CSR - Client-Side Rendering) ---
 function initializeClient() {
