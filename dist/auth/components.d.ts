@@ -8,7 +8,7 @@ interface ProtectedRouteProps {
 /**
  * Componente para proteger rotas que requerem autenticação
  */
-export declare function ProtectedRoute({ children, fallback, redirectTo, requireAuth }: ProtectedRouteProps): string | number | true | Iterable<React.ReactNode> | import("react/jsx-runtime").JSX.Element | null;
+export declare function ProtectedRoute({ children, fallback, redirectTo, requireAuth }: ProtectedRouteProps): string | number | bigint | true | Iterable<React.ReactNode> | Promise<string | number | bigint | boolean | React.ReactPortal | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | null | undefined> | import("react/jsx-runtime").JSX.Element | null;
 interface GuardProps {
     children: ReactNode;
     fallback?: ReactNode;
@@ -17,11 +17,11 @@ interface GuardProps {
 /**
  * Guard simples que só renderiza children se estiver autenticado
  */
-export declare function AuthGuard({ children, fallback, redirectTo }: GuardProps): string | number | true | Iterable<React.ReactNode> | import("react/jsx-runtime").JSX.Element | null;
+export declare function AuthGuard({ children, fallback, redirectTo }: GuardProps): string | number | bigint | true | Iterable<React.ReactNode> | Promise<string | number | bigint | boolean | React.ReactPortal | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | null | undefined> | import("react/jsx-runtime").JSX.Element | null;
 /**
  * Componente para mostrar conteúdo apenas para usuários não autenticados
  */
-export declare function GuestOnly({ children, fallback, redirectTo }: GuardProps): string | number | true | Iterable<React.ReactNode> | import("react/jsx-runtime").JSX.Element;
+export declare function GuestOnly({ children, fallback, redirectTo }: GuardProps): string | number | bigint | true | Iterable<React.ReactNode> | Promise<string | number | bigint | boolean | React.ReactPortal | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | null | undefined> | import("react/jsx-runtime").JSX.Element;
 /**
  * Hook para redirecionar baseado no status de autenticação
  */

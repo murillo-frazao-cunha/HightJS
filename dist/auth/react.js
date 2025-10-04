@@ -5,6 +5,7 @@ exports.useSession = useSession;
 exports.useAuth = useAuth;
 const jsx_runtime_1 = require("react/jsx-runtime");
 const react_1 = require("react");
+const client_1 = require("../client");
 const SessionContext = (0, react_1.createContext)(undefined);
 function SessionProvider({ children, basePath = '/api/auth', refetchInterval = 0, refetchOnWindowFocus = true }) {
     const [session, setSession] = (0, react_1.useState)(null);
@@ -57,10 +58,15 @@ function SessionProvider({ children, basePath = '/api/auth', refetchInterval = 0
             const data = await response.json();
             if (response.ok && data.success) {
                 // Atualiza a sessão após login bem-sucedido
-                await fetchSession();
                 if (redirect && typeof window !== 'undefined') {
-                    window.location.href = callbackUrl || '/';
+                    try {
+                        client_1.router.push(callbackUrl || '/');
+                    }
+                    catch (e) {
+                        window.location.href = callbackUrl || '/';
+                    }
                 }
+                await fetchSession();
                 return {
                     ok: true,
                     status: 200,
@@ -94,7 +100,12 @@ function SessionProvider({ children, basePath = '/api/auth', refetchInterval = 0
             setSession(null);
             setStatus('unauthenticated');
             if (typeof window !== 'undefined') {
-                window.location.href = options.callbackUrl || '/';
+                try {
+                    client_1.router.push(options.callbackUrl || '/');
+                }
+                catch (e) {
+                    window.location.href = options.callbackUrl || '/';
+                }
             }
         }
         catch (error) {

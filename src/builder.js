@@ -11,79 +11,6 @@ const nodeBuiltIns = [
 ];
 
 /**
- * Plugin para mapear React imports para variáveis globais
- */
-const reactGlobalPlugin = {
-    name: 'react-global',
-    setup(build) {
-        // Mapeia react para window.React
-        build.onResolve({ filter: /^react$/ }, () => ({
-            path: 'react',
-            namespace: 'react-global'
-        }));
-
-        // Mapeia react-dom para window.ReactDOM
-        build.onResolve({ filter: /^react-dom$/ }, () => ({
-            path: 'react-dom',
-            namespace: 'react-global'
-        }));
-
-        // Mapeia react-dom/client para window.ReactDOM
-        build.onResolve({ filter: /^react-dom\/client$/ }, () => ({
-            path: 'react-dom/client',
-            namespace: 'react-global'
-        }));
-
-        // Mapeia react/jsx-runtime para window.React
-        build.onResolve({ filter: /^react\/jsx-runtime$/ }, () => ({
-            path: 'react/jsx-runtime',
-            namespace: 'react-global'
-        }));
-
-        // Mapeia react/jsx-dev-runtime para window.React
-        build.onResolve({ filter: /^react\/jsx-dev-runtime$/ }, () => ({
-            path: 'react/jsx-dev-runtime',
-            namespace: 'react-global'
-        }));
-
-        // Fornece o código que mapeia para as variáveis globais
-        build.onLoad({ filter: /.*/, namespace: 'react-global' }, (args) => {
-            if (args.path === 'react') {
-                return {
-                    contents: `
-                        const React = window.React;
-                        export default React;
-                        export const { useState, useEffect, useContext, createContext, createElement, Component, Fragment, useCallback } = React;
-                    `,
-                    resolveDir: '.'
-                };
-            }
-            if (args.path === 'react-dom' || args.path === 'react-dom/client') {
-                return {
-                    contents: `
-                        const ReactDOM = window.ReactDOM;
-                        export default ReactDOM;
-                        export const { render, createRoot, hydrateRoot } = ReactDOM;
-                    `,
-                    resolveDir: '.'
-                };
-            }
-            if (args.path === 'react/jsx-runtime' || args.path === 'react/jsx-dev-runtime') {
-                return {
-                    contents: `
-                        const React = window.React;
-                        export const jsx = React.createElement;
-                        export const jsxs = React.createElement;
-                        export const Fragment = React.Fragment;
-                    `,
-                    resolveDir: '.'
-                };
-            }
-        });
-    }
-};
-
-/**
  * Plugin para processar CSS com PostCSS e Tailwind
  */
 const postcssPlugin = {
@@ -201,12 +128,140 @@ const npmDependenciesPlugin = {
                 return { path: args.path, external: true };
             }
 
-            // Para dependências npm (axios, lodash, etc), deixa o esbuild resolver normalmente
+            // Para dependências npm (axios, lodash, react, react-dom, etc), deixa o esbuild resolver normalmente
             // Isso permite que sejam bundladas no frontend
             return null;
         });
     }
 };
+
+/**
+ * Plugin para garantir que React seja corretamente resolvido
+ */
+const reactResolvePlugin = {
+    name: 'react-resolve',
+    setup(build) {
+        // Força o uso de uma única instância do React do projeto
+        build.onResolve({ filter: /^react$/ }, (args) => {
+            const reactPath = require.resolve('react', { paths: [process.cwd()] });
+            return {
+                path: reactPath
+            };
+        });
+
+        build.onResolve({ filter: /^react-dom$/ }, (args) => {
+            const reactDomPath = require.resolve('react-dom', { paths: [process.cwd()] });
+            return {
+                path: reactDomPath
+            };
+        });
+
+        build.onResolve({ filter: /^react\/jsx-runtime$/ }, (args) => {
+            const jsxRuntimePath = require.resolve('react/jsx-runtime', { paths: [process.cwd()] });
+            return {
+                path: jsxRuntimePath
+            };
+        });
+
+        // Também resolve react-dom/client para React 18+
+        build.onResolve({ filter: /^react-dom\/client$/ }, (args) => {
+            const clientPath = require.resolve('react-dom/client', { paths: [process.cwd()] });
+            return {
+                path: clientPath
+            };
+        });
+    }
+};
+
+/**
+ * Builds with code splitting into multiple chunks based on module types.
+ * @param {string} entryPoint - The path to the entry file.
+ * @param {string} outdir - The directory for output files.
+ * @param {boolean} isProduction - Se está em modo produção ou não.
+ * @returns {Promise<void>}
+ */
+async function buildWithChunks(entryPoint, outdir, isProduction = false) {
+  if (!isProduction) {
+    console.log(`Iniciando o build com chunks de \"${entryPoint}\"...`);
+  }
+
+  try {
+    await esbuild.build({
+      entryPoints: [entryPoint],
+      bundle: true,
+      minify: isProduction,
+      sourcemap: !isProduction,
+      platform: 'browser',
+      outdir: outdir,
+      loader: { '.js': 'jsx', '.ts': 'tsx' },
+      external: nodeBuiltIns,
+      plugins: [postcssPlugin, npmDependenciesPlugin, reactResolvePlugin],
+      format: 'esm', // ESM suporta melhor o code splitting
+      jsx: 'automatic',
+      define: {
+        'process.env.NODE_ENV': isProduction ? '"production"' : '"development"'
+      },
+      conditions: ['development'],
+      mainFields: ['browser', 'module', 'main'],
+      resolveExtensions: ['.tsx', '.ts', '.jsx', '.js'],
+      splitting: true,
+      chunkNames: 'chunks/[name]-[hash]',
+      // Força o nome do entry para main(.js) ou main-[hash].js em prod
+      entryNames: isProduction ? 'main-[hash]' : 'main',
+      keepNames: true,
+      treeShaking: true,
+    });
+
+    if (!isProduction) {
+      console.log(`Build com chunks finalizado! Saída: \"${outdir}\".`);
+    }
+  } catch (error) {
+    console.error('Ocorreu um erro durante o build com chunks:', error);
+    process.exit(1);
+  }
+}
+
+/**
+ * Watches with code splitting enabled
+ * @param {string} entryPoint - The path to the entry file.
+ * @param {string} outdir - The directory for output files.
+ * @param {Object} hotReloadManager - Manager de hot reload (opcional).
+ * @returns {Promise<void>}
+ */
+async function watchWithChunks(entryPoint, outdir, hotReloadManager = null) {
+    try {
+        const context = await esbuild.context({
+            entryPoints: [entryPoint],
+            bundle: true,
+            minify: false,
+            sourcemap: true,
+            platform: 'browser',
+            outdir: outdir,
+            loader: { '.js': 'jsx', '.ts': 'tsx' },
+            external: nodeBuiltIns,
+            plugins: [postcssPlugin, npmDependenciesPlugin, reactResolvePlugin],
+            format: 'esm',
+            jsx: 'automatic',
+            define: {
+                'process.env.NODE_ENV': '"development"'
+            },
+            conditions: ['development'],
+            mainFields: ['browser', 'module', 'main'],
+            resolveExtensions: ['.tsx', '.ts', '.jsx', '.js'],
+            splitting: true,
+            chunkNames: 'chunks/[name]-[hash]',
+            entryNames: 'main',
+            keepNames: true,
+            treeShaking: true,
+        });
+
+        await context.watch();
+    } catch (error) {
+        console.error(error)
+        Console.error('Erro ao iniciar o modo watch com chunks:', error);
+        throw error;
+    }
+}
 
 /**
  * Builds a single entry point into a single output file.
@@ -230,17 +285,24 @@ async function build(entryPoint, outfile, isProduction = false) {
       outfile: outfile,
       loader: { '.js': 'jsx', '.ts': 'tsx' },
       external: nodeBuiltIns,
-      plugins: [reactGlobalPlugin, postcssPlugin, npmDependenciesPlugin],
+      plugins: [postcssPlugin, npmDependenciesPlugin, reactResolvePlugin],
       format: 'iife',
       globalName: 'HwebApp',
       jsx: 'automatic',
       define: {
         'process.env.NODE_ENV': isProduction ? '"production"' : '"development"'
       },
-      // CORRIGIDO: Não remove console.log nem debugger em produção para funcionalidade completa
-      drop: [], // Remove apenas em casos específicos se necessário
-      // Preserva nomes de funções e comportamento em produção
+      // Configurações específicas para React 19
+      conditions: ['development'],
+      mainFields: ['browser', 'module', 'main'],
+      resolveExtensions: ['.tsx', '.ts', '.jsx', '.js'],
+      // Garante que não há duplicação de dependências
+      splitting: false,
+      // Preserva nomes de funções e comportamento
       keepNames: true,
+      // Remove otimizações que podem causar problemas com hooks
+      treeShaking: true,
+      drop: [], // Não remove nada automaticamente
     });
 
     if (!isProduction) {
@@ -270,15 +332,24 @@ async function watch(entryPoint, outfile, hotReloadManager = null) {
             outfile: outfile,
             loader: { '.js': 'jsx', '.ts': 'tsx' },
             external: nodeBuiltIns,
-            plugins: [reactGlobalPlugin, postcssPlugin, npmDependenciesPlugin],
+            plugins: [postcssPlugin, npmDependenciesPlugin, reactResolvePlugin],
             format: 'iife',
             globalName: 'HwebApp',
             jsx: 'automatic',
             define: {
                 'process.env.NODE_ENV': '"development"'
-            }
+            },
+            // Configurações específicas para React 19 (mesmo que no build)
+            conditions: ['development'],
+            mainFields: ['browser', 'module', 'main'],
+            resolveExtensions: ['.tsx', '.ts', '.jsx', '.js'],
+            // Garante que não há duplicação de dependências
+            splitting: false,
+            // Preserva nomes de funções e comportamento
+            keepNames: true,
+            // Remove otimizações que podem causar problemas com hooks
+            treeShaking: true,
         });
-
 
         // Configura o watcher do esbuild
         await context.watch();
@@ -288,4 +359,4 @@ async function watch(entryPoint, outfile, hotReloadManager = null) {
     }
 }
 
-module.exports = { build, watch };
+module.exports = { build, watch, buildWithChunks, watchWithChunks };

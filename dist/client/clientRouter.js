@@ -19,8 +19,8 @@ class Router {
         }
         // Atualiza a URL na barra de endereço
         window.history.pushState({ path: url }, '', url);
-        // Dispara evento para o roteador capturar
-        this.triggerNavigation();
+        // Dispara evento para o roteador capturar de forma assíncrona
+        setTimeout(() => this.triggerNavigation(), 0);
         // Callback após navegar
         if (this.events.afterNavigate) {
             this.events.afterNavigate(url);
@@ -38,8 +38,8 @@ class Router {
         }
         // Substitui a URL atual no histórico
         window.history.replaceState({ path: url }, '', url);
-        // Dispara evento para o roteador capturar
-        this.triggerNavigation();
+        // Dispara evento para o roteador capturar de forma assíncrona
+        setTimeout(() => this.triggerNavigation(), 0);
         // Callback após navegar
         if (this.events.afterNavigate) {
             this.events.afterNavigate(url);
@@ -61,7 +61,7 @@ class Router {
      * Recarrega a página atual (re-renderiza o componente)
      */
     refresh() {
-        this.triggerNavigation();
+        setTimeout(() => this.triggerNavigation(), 0);
     }
     /**
      * Obtém a URL atual

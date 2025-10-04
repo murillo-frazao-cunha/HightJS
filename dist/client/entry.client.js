@@ -36,6 +36,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const jsx_runtime_1 = require("react/jsx-runtime");
 const react_1 = __importStar(require("react"));
 const client_1 = require("react-dom/client");
+const clientRouter_1 = require("./clientRouter");
 function App({ componentMap, routes, initialComponentPath, initialParams, layoutComponent }) {
     // Estado que guarda o componente a ser renderizado atualmente
     const [CurrentPageComponent, setCurrentPageComponent] = (0, react_1.useState)(() => {
@@ -46,7 +47,7 @@ function App({ componentMap, routes, initialComponentPath, initialParams, layout
         return componentMap[initialComponentPath];
     });
     const [params, setParams] = (0, react_1.useState)(initialParams);
-    const findRouteForPath = (path) => {
+    const findRouteForPath = (0, react_1.useCallback)((path) => {
         for (const route of routes) {
             const regexPattern = route.pattern.replace(/\[(\w+)\]/g, '(?<$1>[^/]+)');
             const regex = new RegExp(`^${regexPattern}/?$`);
@@ -59,12 +60,10 @@ function App({ componentMap, routes, initialComponentPath, initialParams, layout
             }
         }
         return null;
-    };
-    const navigate = (path) => {
-        // Atualiza a URL na barra de endereço
-        window.history.pushState({ path }, '', path);
-        // Encontra o novo componente e atualiza o estado
-        const match = findRouteForPath(path);
+    }, [routes]);
+    const updateRoute = (0, react_1.useCallback)(() => {
+        const currentPath = clientRouter_1.router.pathname;
+        const match = findRouteForPath(currentPath);
         if (match) {
             setCurrentPageComponent(() => componentMap[match.componentPath]);
             setParams(match.params);
@@ -74,25 +73,20 @@ function App({ componentMap, routes, initialComponentPath, initialParams, layout
             setCurrentPageComponent(null);
             setParams({});
         }
-    };
+    }, [clientRouter_1.router.pathname, findRouteForPath, componentMap]);
     // Ouve os eventos de "voltar" e "avançar" do navegador
     (0, react_1.useEffect)(() => {
-        const handlePopState = (event) => {
-            const currentPath = window.location.pathname;
-            const match = findRouteForPath(currentPath);
-            if (match) {
-                setCurrentPageComponent(() => componentMap[match.componentPath]);
-                setParams(match.params);
-            }
-            else {
-                // Se não encontrou rota, define como null para mostrar 404
-                setCurrentPageComponent(null);
-                setParams({});
-            }
+        const handlePopState = () => {
+            updateRoute();
         };
         window.addEventListener('popstate', handlePopState);
-        return () => window.removeEventListener('popstate', handlePopState);
-    }, [routes, componentMap]);
+        // Também se inscreve no router para mudanças de rota
+        const unsubscribe = clientRouter_1.router.subscribe(updateRoute);
+        return () => {
+            window.removeEventListener('popstate', handlePopState);
+            unsubscribe();
+        };
+    }, [updateRoute]);
     // Se não há componente ou é a rota __404__, mostra página 404
     if (!CurrentPageComponent || initialComponentPath === '__404__') {
         // Usa o componente 404 personalizado se existir, senão usa o padrão do hweb
@@ -117,10 +111,8 @@ function App({ componentMap, routes, initialComponentPath, initialParams, layout
             return NotFoundContent;
         }
     }
-    // Cria um contexto simples para navegação
-    const RouterContext = react_1.default.createContext({ navigate });
-    // Renderiza o componente atual
-    const PageContent = ((0, jsx_runtime_1.jsx)(RouterContext.Provider, { value: { navigate }, children: (0, jsx_runtime_1.jsx)(CurrentPageComponent, { params: params }) }));
+    // Renderiza o componente atual (sem Context, usa o router diretamente)
+    const PageContent = (0, jsx_runtime_1.jsx)(CurrentPageComponent, { params: params });
     // SEMPRE usa o layout - se não existir, cria um wrapper padrão
     if (layoutComponent) {
         // Usa o layout personalizado do usuário
@@ -128,7 +120,7 @@ function App({ componentMap, routes, initialComponentPath, initialParams, layout
     }
     else {
         // Se não há layout personalizado, cria um wrapper básico mas SEMPRE envolve
-        return ((0, jsx_runtime_1.jsx)("div", { style: { minHeight: '100vh' }, children: PageContent }));
+        return ((0, jsx_runtime_1.jsx)("div", { children: PageContent }));
     }
 }
 // --- Inicialização do Cliente (CSR - Client-Side Rendering) ---

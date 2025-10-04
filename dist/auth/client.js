@@ -1,8 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.setBasePath = setBasePath;
-exports.signIn = signIn;
-exports.signOut = signOut;
 exports.getSession = getSession;
 exports.getCsrfToken = getCsrfToken;
 exports.getProviders = getProviders;
@@ -10,69 +8,6 @@ exports.getProviders = getProviders;
 let basePath = '/api/auth';
 function setBasePath(path) {
     basePath = path;
-}
-/**
- * Função para fazer login (similar ao NextAuth signIn)
- */
-async function signIn(provider = 'credentials', options = {}) {
-    try {
-        const { redirect = true, callbackUrl, ...credentials } = options;
-        const response = await fetch(`${basePath}/signin`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            credentials: 'include',
-            body: JSON.stringify({
-                provider,
-                ...credentials
-            })
-        });
-        const data = await response.json();
-        if (response.ok && data.success) {
-            if (redirect && typeof window !== 'undefined') {
-                window.location.href = callbackUrl || '/';
-                return undefined; // Não retorna nada quando redireciona
-            }
-            return {
-                ok: true,
-                status: 200,
-                url: callbackUrl || '/'
-            };
-        }
-        else {
-            return {
-                error: data.error || 'Authentication failed',
-                status: response.status,
-                ok: false
-            };
-        }
-    }
-    catch (error) {
-        console.error('[hweb-auth] Erro no signIn:', error);
-        return {
-            error: 'Network error',
-            status: 500,
-            ok: false
-        };
-    }
-}
-/**
- * Função para fazer logout (similar ao NextAuth signOut)
- */
-async function signOut(options = {}) {
-    try {
-        await fetch(`${basePath}/signout`, {
-            method: 'POST',
-            credentials: 'include'
-        });
-        if (typeof window !== 'undefined') {
-            window.location.href = options.callbackUrl || '/';
-        }
-    }
-    catch (error) {
-        console.error('[hweb-auth] Erro no signOut:', error);
-    }
 }
 /**
  * Função para obter a sessão atual (similar ao NextAuth getSession)

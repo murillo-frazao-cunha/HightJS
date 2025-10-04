@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
 import type { Session, SessionContextType, SignInOptions, SignInResult, User } from './types';
+import {router} from "../client";
 
 const SessionContext = createContext<SessionContextType | undefined>(undefined);
 
@@ -75,11 +76,16 @@ export function SessionProvider({
 
             if (response.ok && data.success) {
                 // Atualiza a sessão após login bem-sucedido
-                await fetchSession();
 
                 if (redirect && typeof window !== 'undefined') {
-                    window.location.href = callbackUrl || '/';
+                    try {
+                        router.push(callbackUrl || '/');
+                    } catch (e) {
+                        window.location.href = callbackUrl || '/';
+                    }
+
                 }
+                await fetchSession();
 
                 return {
                     ok: true,
@@ -115,7 +121,11 @@ export function SessionProvider({
             setStatus('unauthenticated');
 
             if (typeof window !== 'undefined') {
-                window.location.href = options.callbackUrl || '/';
+                try {
+                    router.push(options.callbackUrl || '/');
+                } catch (e) {
+                    window.location.href = options.callbackUrl || '/';
+                }
             }
         } catch (error) {
             console.error('[hweb-auth] Erro no signOut:', error);

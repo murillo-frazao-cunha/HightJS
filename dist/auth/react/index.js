@@ -14,15 +14,13 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
     for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.GuestOnly = exports.AuthGuard = exports.ProtectedRoute = exports.SessionProvider = exports.useAuth = exports.useSession = exports.getSession = exports.signOut = exports.signIn = void 0;
+exports.GuestOnly = exports.AuthGuard = exports.ProtectedRoute = exports.SessionProvider = exports.useAuth = exports.useSession = exports.getSession = void 0;
 // Exportações do frontend
 __exportStar(require("../react"), exports);
 __exportStar(require("../client"), exports);
 __exportStar(require("../components"), exports);
 // Re-exports das funções mais usadas para conveniência
 var client_1 = require("../client");
-Object.defineProperty(exports, "signIn", { enumerable: true, get: function () { return client_1.signIn; } });
-Object.defineProperty(exports, "signOut", { enumerable: true, get: function () { return client_1.signOut; } });
 Object.defineProperty(exports, "getSession", { enumerable: true, get: function () { return client_1.getSession; } });
 var react_1 = require("../react");
 Object.defineProperty(exports, "useSession", { enumerable: true, get: function () { return react_1.useSession; } });

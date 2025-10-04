@@ -61,6 +61,38 @@ Object.defineProperty(exports, "FrameworkAdapterFactory", { enumerable: true, ge
 var helpers_1 = require("./helpers");
 Object.defineProperty(exports, "app", { enumerable: true, get: function () { return helpers_1.app; } });
 // Exporta o sistema de autenticação
+// Função para verificar se o projeto é grande o suficiente para se beneficiar de chunks
+function isLargeProject(projectDir) {
+    try {
+        const srcDir = path_1.default.join(projectDir, 'src');
+        if (!fs_1.default.existsSync(srcDir))
+            return false;
+        let totalFiles = 0;
+        let totalSize = 0;
+        function scanDirectory(dir) {
+            const items = fs_1.default.readdirSync(dir, { withFileTypes: true });
+            for (const item of items) {
+                const fullPath = path_1.default.join(dir, item.name);
+                if (item.isDirectory() && item.name !== 'node_modules' && item.name !== '.git') {
+                    scanDirectory(fullPath);
+                }
+                else if (item.isFile() && /\.(tsx?|jsx?|css|scss|less)$/i.test(item.name)) {
+                    totalFiles++;
+                    totalSize += fs_1.default.statSync(fullPath).size;
+                }
+            }
+        }
+        scanDirectory(srcDir);
+        // Considera projeto grande se:
+        // - Mais de 20 arquivos de frontend/style
+        // - Ou tamanho total > 500KB
+        return totalFiles > 20 || totalSize > 500 * 1024;
+    }
+    catch (error) {
+        // Em caso de erro, assume que não é um projeto grande
+        return false;
+    }
+}
 // Função para gerar o arquivo de entrada para o esbuild
 function createEntryFile(projectDir, routes) {
     const tempDir = path_1.default.join(projectDir, '.hweb');
@@ -203,14 +235,31 @@ function hweb(options) {
             const outDir = path_1.default.join(dir, 'hweb-dist');
             fs_1.default.mkdirSync(outDir, { recursive: true });
             entryPoint = createEntryFile(dir, frontendRoutes);
-            outfile = path_1.default.join(outDir, 'main.js');
-            if (isProduction) {
-                await (0, builder_1.build)(entryPoint, outfile, isProduction);
+            // Usa chunks quando há muitas rotas ou o projeto é grande
+            const shouldUseChunks = frontendRoutes.length > 5 || isLargeProject(dir);
+            if (shouldUseChunks) {
+                const outDir = path_1.default.join(dir, 'hweb-dist');
+                if (isProduction) {
+                    await (0, builder_1.buildWithChunks)(entryPoint, outDir, isProduction);
+                    console_1.default.info(`✅ Build com chunks finalizado! ${frontendRoutes.length} rotas processadas.`);
+                }
+                else {
+                    (0, builder_1.watchWithChunks)(entryPoint, outDir, hotReloadManager).catch(err => {
+                        console_1.default.error(`Erro ao iniciar o watch com chunks`, err);
+                    });
+                    console_1.default.info(`🚀 Modo watch com chunks ativo para ${frontendRoutes.length} rotas.`);
+                }
             }
             else {
-                (0, builder_1.watch)(entryPoint, outfile, hotReloadManager).catch(err => {
-                    console_1.default.error(`Erro ao iniciar o watch`, err);
-                });
+                outfile = path_1.default.join(dir, 'hweb-dist', 'main.js');
+                if (isProduction) {
+                    await (0, builder_1.build)(entryPoint, outfile, isProduction);
+                }
+                else {
+                    (0, builder_1.watch)(entryPoint, outfile, hotReloadManager).catch(err => {
+                        console_1.default.error(`Erro ao iniciar o watch`, err);
+                    });
+                }
             }
         },
         executeInstrumentation: () => {
@@ -317,48 +366,8 @@ function hweb(options) {
                         return;
                     }
                 }
-                // 4. Verifica se é um arquivo do React (node_modules)
-                if (pathname === '/hweb-react/react.js') {
-                    const reactPath = dev
-                        ? path_1.default.join(dir, 'node_modules/react/cjs/react.development.js')
-                        : path_1.default.join(dir, 'node_modules/react/cjs/react.production.min.js');
-                    console.log(reactPath);
-                    if (fs_1.default.existsSync(reactPath)) {
-                        genericRes.header('Content-Type', 'application/javascript');
-                        if (adapter.type === 'express') {
-                            res.sendFile(reactPath);
-                        }
-                        else if (adapter.type === 'fastify') {
-                            const fileContent = fs_1.default.readFileSync(reactPath);
-                            genericRes.send(fileContent);
-                        }
-                        else if (adapter.type === 'native') {
-                            const fileContent = fs_1.default.readFileSync(reactPath);
-                            genericRes.send(fileContent);
-                        }
-                        return;
-                    }
-                }
-                if (pathname === '/hweb-react/react-dom.js') {
-                    const reactDomPath = dev
-                        ? path_1.default.join(dir, 'node_modules/react-dom/cjs/react-dom.development.js')
-                        : path_1.default.join(dir, 'node_modules/react-dom/cjs/react-dom.production.min.js');
-                    if (fs_1.default.existsSync(reactDomPath)) {
-                        genericRes.header('Content-Type', 'application/javascript');
-                        if (adapter.type === 'express') {
-                            res.sendFile(reactDomPath);
-                        }
-                        else if (adapter.type === 'fastify') {
-                            const fileContent = fs_1.default.readFileSync(reactDomPath);
-                            genericRes.send(fileContent);
-                        }
-                        else if (adapter.type === 'native') {
-                            const fileContent = fs_1.default.readFileSync(reactDomPath);
-                            genericRes.send(fileContent);
-                        }
-                        return;
-                    }
-                }
+                // 4. REMOVIDO: Verificação de arquivos React UMD - não precisamos mais
+                // O React agora será bundlado diretamente no main.js
                 // 5. Verifica se é uma rota de API (backend)
                 const backendMatch = (0, router_1.findMatchingBackendRoute)(pathname, method);
                 if (backendMatch) {

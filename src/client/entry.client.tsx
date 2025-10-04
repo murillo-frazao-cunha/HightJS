@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { createRoot } from 'react-dom/client';
+import { router } from './clientRouter';
 
 // --- O Componente Principal do Cliente (Roteador) ---
 
@@ -22,7 +23,7 @@ function App({ componentMap, routes, initialComponentPath, initialParams, layout
     });
     const [params, setParams] = useState(initialParams);
 
-    const findRouteForPath = (path: string) => {
+    const findRouteForPath = useCallback((path: string) => {
         for (const route of routes) {
             const regexPattern = route.pattern.replace(/\[(\w+)\]/g, '(?<$1>[^/]+)');
             const regex = new RegExp(`^${regexPattern}/?$`);
@@ -35,13 +36,11 @@ function App({ componentMap, routes, initialComponentPath, initialParams, layout
             }
         }
         return null;
-    };
+    }, [routes]);
 
-    const navigate = (path: string) => {
-        // Atualiza a URL na barra de endereço
-        window.history.pushState({ path }, '', path);
-        // Encontra o novo componente e atualiza o estado
-        const match = findRouteForPath(path);
+    const updateRoute = useCallback(() => {
+        const currentPath = router.pathname;
+        const match = findRouteForPath(currentPath);
         if (match) {
             setCurrentPageComponent(() => componentMap[match.componentPath]);
             setParams(match.params);
@@ -50,26 +49,24 @@ function App({ componentMap, routes, initialComponentPath, initialParams, layout
             setCurrentPageComponent(null);
             setParams({});
         }
-    };
+    }, [router.pathname, findRouteForPath, componentMap]);
 
     // Ouve os eventos de "voltar" e "avançar" do navegador
     useEffect(() => {
-        const handlePopState = (event: PopStateEvent) => {
-            const currentPath = window.location.pathname;
-            const match = findRouteForPath(currentPath);
-            if (match) {
-                setCurrentPageComponent(() => componentMap[match.componentPath]);
-                setParams(match.params);
-            } else {
-                // Se não encontrou rota, define como null para mostrar 404
-                setCurrentPageComponent(null);
-                setParams({});
-            }
+        const handlePopState = () => {
+            updateRoute();
         };
 
         window.addEventListener('popstate', handlePopState);
-        return () => window.removeEventListener('popstate', handlePopState);
-    }, [routes, componentMap]);
+
+        // Também se inscreve no router para mudanças de rota
+        const unsubscribe = router.subscribe(updateRoute);
+
+        return () => {
+            window.removeEventListener('popstate', handlePopState);
+            unsubscribe();
+        };
+    }, [updateRoute]);
 
     // Se não há componente ou é a rota __404__, mostra página 404
     if (!CurrentPageComponent || initialComponentPath === '__404__') {
@@ -98,15 +95,8 @@ function App({ componentMap, routes, initialComponentPath, initialParams, layout
         }
     }
 
-    // Cria um contexto simples para navegação
-    const RouterContext = React.createContext({ navigate });
-
-    // Renderiza o componente atual
-    const PageContent = (
-        <RouterContext.Provider value={{ navigate }}>
-            <CurrentPageComponent params={params} />
-        </RouterContext.Provider>
-    );
+    // Renderiza o componente atual (sem Context, usa o router diretamente)
+    const PageContent = <CurrentPageComponent params={params} />;
 
     // SEMPRE usa o layout - se não existir, cria um wrapper padrão
     if (layoutComponent) {
@@ -115,7 +105,7 @@ function App({ componentMap, routes, initialComponentPath, initialParams, layout
     } else {
         // Se não há layout personalizado, cria um wrapper básico mas SEMPRE envolve
         return (
-            <div style={{ minHeight: '100vh' }}>
+            <div>
                 {PageContent}
             </div>
         );
