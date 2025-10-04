@@ -104,17 +104,91 @@ function App({ componentMap, routes, initialComponentPath, initialParams, layout
     const PageContent = <CurrentPageComponent params={params} />;
 
     // SEMPRE usa o layout - se não existir, cria um wrapper padrão
-    if (layoutComponent) {
-        // Usa o layout personalizado do usuário
-        return React.createElement(layoutComponent, { children: PageContent });
-    } else {
-        // Se não há layout personalizado, cria um wrapper básico mas SEMPRE envolve
-        return (
-            <div>
-                {PageContent}
-            </div>
-        );
-    }
+    const content = layoutComponent
+        ? React.createElement(layoutComponent, { children: PageContent })
+        : <div>{PageContent}</div>;
+
+    // Adiciona o indicador de dev se não for produção
+    return (
+        <>
+            {content}
+            {process.env.NODE_ENV !== 'production' && <DevIndicator />}
+        </>
+    );
+}
+
+// --- Indicador de Desenvolvimento ---
+const DEV_INDICATOR_SIZE = 48;
+const DEV_INDICATOR_CORNERS = [
+    { top: 16, left: 16 }, // topo-esquerda
+    { top: 16, right: 16 }, // topo-direita
+    { bottom: 16, left: 16 }, // baixo-esquerda
+    { bottom: 16, right: 16 }, // baixo-direita
+];
+
+function DevIndicator() {
+    const [corner, setCorner] = useState(3); // default: bottom-right
+    const [dragging, setDragging] = useState(false);
+    const indicatorRef = React.useRef<HTMLDivElement>(null);
+
+    // Calcula o estilo baseado no canto
+    const style: React.CSSProperties = {
+        position: 'fixed',
+        zIndex: 9999,
+        width: DEV_INDICATOR_SIZE,
+        height: DEV_INDICATOR_SIZE,
+        borderRadius: '50%',
+        background: 'linear-gradient(135deg, #ffb300 60%, #fffbe6 100%)',
+        color: '#222',
+        fontWeight: 'bold',
+        fontSize: 28,
+        boxShadow: '0 2px 12px rgba(0,0,0,0.12)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        cursor: dragging ? 'grabbing' : 'grab',
+        userSelect: 'none',
+        transition: dragging ? 'none' : 'all 0.2s',
+        ...DEV_INDICATOR_CORNERS[corner],
+    };
+
+    // Drag logic: move para o canto mais próximo ao soltar
+    const onMouseDown = (e: React.MouseEvent) => {
+        setDragging(true);
+        e.preventDefault();
+    };
+    const onMouseUp = (e: MouseEvent) => {
+        setDragging(false);
+        if (!indicatorRef.current) return;
+        const { clientX, clientY } = e;
+        const w = window.innerWidth, h = window.innerHeight;
+        // Calcula distâncias para cada canto
+        const dists = [
+            Math.hypot(clientX - 16, clientY - 16), // TL
+            Math.hypot(clientX - (w - 16), clientY - 16), // TR
+            Math.hypot(clientX - 16, clientY - (h - 16)), // BL
+            Math.hypot(clientX - (w - 16), clientY - (h - 16)), // BR
+        ];
+        setCorner(dists.indexOf(Math.min(...dists)));
+    };
+    React.useEffect(() => {
+        if (!dragging) return;
+        const onMove = (e: MouseEvent) => {
+            // Segue o mouse, mas não move visualmente (snap só ao soltar)
+        };
+        window.addEventListener('mousemove', onMove);
+        window.addEventListener('mouseup', onMouseUp);
+        return () => {
+            window.removeEventListener('mousemove', onMove);
+            window.removeEventListener('mouseup', onMouseUp);
+        };
+    }, [dragging]);
+
+    return (
+        <div ref={indicatorRef} style={style} onMouseDown={onMouseDown} title="Modo Dev HightJS">
+            H
+        </div>
+    );
 }
 
 // --- Inicialização do Cliente (CSR - Client-Side Rendering) ---
