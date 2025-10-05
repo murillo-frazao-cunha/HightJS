@@ -4,8 +4,42 @@ export interface Session {
     expires: string;
     accessToken?: string;
 }
+export interface SignInOptions {
+    redirect?: boolean;
+    callbackUrl?: string;
+    [key: string]: any;
+}
+export interface SignInResult {
+    error?: string;
+    status?: number;
+    ok?: boolean;
+    url?: string;
+}
+export interface SessionContextType {
+    data: Session | null;
+    status: 'loading' | 'authenticated' | 'unauthenticated';
+    signIn: (provider?: string, options?: SignInOptions) => Promise<SignInResult | undefined>;
+    signOut: (options?: {
+        callbackUrl?: string;
+    }) => Promise<void>;
+    update: () => Promise<Session | null>;
+}
+export interface AuthRoute {
+    method: 'GET' | 'POST' | 'PUT' | 'DELETE';
+    path: string;
+    handler: (req: any, params: any) => Promise<any>;
+}
+export interface AuthProviderClass {
+    id: string;
+    name: string;
+    type: string;
+    handleSignIn(credentials: Record<string, string>): Promise<User | null>;
+    handleSignOut?(): Promise<void>;
+    additionalRoutes?: AuthRoute[];
+    getConfig?(): any;
+}
 export interface AuthConfig {
-    providers: AuthProvider[];
+    providers: AuthProviderClass[];
     pages?: {
         signIn?: string;
         signOut?: string;
@@ -29,26 +63,6 @@ export interface AuthProvider {
     name: string;
     type: 'credentials';
     authorize?: (credentials: Record<string, string>) => Promise<User | null> | User | null;
-}
-export interface SignInOptions {
-    redirect?: boolean;
-    callbackUrl?: string;
-    [key: string]: any;
-}
-export interface SignInResult {
-    error?: string;
-    status?: number;
-    ok?: boolean;
-    url?: string;
-}
-export interface SessionContextType {
-    data: Session | null;
-    status: 'loading' | 'authenticated' | 'unauthenticated';
-    signIn: (provider?: string, options?: SignInOptions) => Promise<SignInResult | undefined>;
-    signOut: (options?: {
-        callbackUrl?: string;
-    }) => Promise<void>;
-    update: () => Promise<Session | null>;
 }
 export interface CredentialsConfig {
     id?: string;

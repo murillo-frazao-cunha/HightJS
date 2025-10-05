@@ -14,7 +14,7 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
     for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createAuthRoutes = exports.CredentialsProvider = void 0;
+exports.createAuthRoutes = exports.DiscordProvider = exports.CredentialsProvider = void 0;
 // Exportações principais do sistema de autenticação
 __exportStar(require("./types"), exports);
 __exportStar(require("./providers"), exports);
@@ -23,5 +23,6 @@ __exportStar(require("./routes"), exports);
 __exportStar(require("./jwt"), exports);
 var providers_1 = require("./providers");
 Object.defineProperty(exports, "CredentialsProvider", { enumerable: true, get: function () { return providers_1.CredentialsProvider; } });
+Object.defineProperty(exports, "DiscordProvider", { enumerable: true, get: function () { return providers_1.DiscordProvider; } });
 var routes_1 = require("./routes");
 Object.defineProperty(exports, "createAuthRoutes", { enumerable: true, get: function () { return routes_1.createAuthRoutes; } });

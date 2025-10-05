@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
 import type { Session, SessionContextType, SignInOptions, SignInResult, User } from './types';
-import {router} from "../client";
+import { router } from "../client/clientRouter";
 
 const SessionContext = createContext<SessionContextType | undefined>(undefined);
 

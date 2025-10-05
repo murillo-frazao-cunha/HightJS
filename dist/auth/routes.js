@@ -17,13 +17,27 @@ function createAuthRoutes(config) {
         async GET(req, params) {
             const path = params["value"];
             const route = Array.isArray(path) ? path.join('/') : path || '';
+            // Verifica rotas adicionais dos providers primeiro
+            const additionalRoutes = auth.getAllAdditionalRoutes();
+            for (const { provider, route: additionalRoute } of additionalRoutes) {
+                if (additionalRoute.method === 'GET' && additionalRoute.path.includes(route)) {
+                    try {
+                        return await additionalRoute.handler(req, params);
+                    }
+                    catch (error) {
+                        console.error(`[${provider} Provider] Error in additional route:`, error);
+                        return http_1.HightJSResponse.json({ error: 'Provider route error' }, { status: 500 });
+                    }
+                }
+            }
+            // Rotas padrão do sistema
             switch (route) {
                 case 'session':
                     return await handleSession(req, auth);
                 case 'csrf':
                     return await handleCsrf(req);
                 case 'providers':
-                    return await handleProviders(config);
+                    return await handleProviders(auth);
                 default:
                     return http_1.HightJSResponse.json({ error: 'Route not found' }, { status: 404 });
             }
@@ -31,6 +45,20 @@ function createAuthRoutes(config) {
         async POST(req, params) {
             const path = params["value"];
             const route = Array.isArray(path) ? path.join('/') : path || '';
+            // Verifica rotas adicionais dos providers primeiro
+            const additionalRoutes = auth.getAllAdditionalRoutes();
+            for (const { provider, route: additionalRoute } of additionalRoutes) {
+                if (additionalRoute.method === 'POST' && additionalRoute.path.includes(route)) {
+                    try {
+                        return await additionalRoute.handler(req, params);
+                    }
+                    catch (error) {
+                        console.error(`[${provider} Provider] Error in additional route:`, error);
+                        return http_1.HightJSResponse.json({ error: 'Provider route error' }, { status: 500 });
+                    }
+                }
+            }
+            // Rotas padrão do sistema
             switch (route) {
                 case 'signin':
                     return await handleSignIn(req, auth);
@@ -66,14 +94,8 @@ async function handleCsrf(req) {
 /**
  * Handler para GET /api/auth/providers
  */
-async function handleProviders(config) {
-    const providers = config.providers
-        .filter(p => p.type === 'credentials') // Apenas credentials
-        .map(p => ({
-        id: p.id,
-        name: p.name,
-        type: p.type
-    }));
+async function handleProviders(auth) {
+    const providers = auth.getProviders();
     return http_1.HightJSResponse.json({ providers });
 }
 /**
@@ -82,7 +104,6 @@ async function handleProviders(config) {
 async function handleSignIn(req, auth) {
     try {
         const { provider = 'credentials', ...credentials } = await req.json();
-        // Apenas credentials agora
         const result = await auth.signIn(provider, credentials);
         if (!result) {
             return http_1.HightJSResponse.json({ error: 'Invalid credentials' }, { status: 401 });
@@ -93,6 +114,7 @@ async function handleSignIn(req, auth) {
         });
     }
     catch (error) {
+        console.error('[hweb-auth] Erro no handleSignIn:', error);
         return http_1.HightJSResponse.json({ error: 'Authentication failed' }, { status: 500 });
     }
 }
@@ -100,5 +122,5 @@ async function handleSignIn(req, auth) {
  * Handler para POST /api/auth/signout
  */
 async function handleSignOut(req, auth) {
-    return auth.signOut();
+    return await auth.signOut(req);
 }

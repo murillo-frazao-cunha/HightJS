@@ -1,5 +1,2 @@
-import type { AuthProvider, CredentialsConfig } from './types';
-/**
- * Provider para autenticação com credenciais (email/senha)
- */
-export declare function CredentialsProvider(config: CredentialsConfig): AuthProvider;
+export { CredentialsProvider } from './providers/credentials';
+export { DiscordProvider } from './providers/discord';

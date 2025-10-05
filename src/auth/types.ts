@@ -7,34 +7,7 @@ export interface Session {
     accessToken?: string;
 }
 
-export interface AuthConfig {
-    providers: AuthProvider[];
-    pages?: {
-        signIn?: string;
-        signOut?: string;
-        error?: string;
-    };
-    callbacks?: {
-        signIn?: (user: User, account: any, profile: any) => boolean | Promise<boolean>;
-        session?: (session: Session, user: User) => Session | Promise<Session>;
-        jwt?: (token: any, user: User, account: any, profile: any) => any | Promise<any>;
-    };
-    session?: {
-        strategy?: 'jwt' | 'database';
-        maxAge?: number;
-        updateAge?: number;
-    };
-    secret?: string;
-    debug?: boolean;
-}
-
-export interface AuthProvider {
-    id: string;
-    name: string;
-    type: 'credentials';
-    authorize?: (credentials: Record<string, string>) => Promise<User | null> | User | null;
-}
-
+// Client-side types
 export interface SignInOptions {
     redirect?: boolean;
     callbackUrl?: string;
@@ -56,6 +29,57 @@ export interface SessionContextType {
     update: () => Promise<Session | null>;
 }
 
+export interface AuthRoute {
+    method: 'GET' | 'POST' | 'PUT' | 'DELETE';
+    path: string;
+    handler: (req: any, params: any) => Promise<any>;
+}
+
+export interface AuthProviderClass {
+    id: string;
+    name: string;
+    type: string;
+
+    // Métodos principais
+    handleSignIn(credentials: Record<string, string>): Promise<User | null>;
+    handleSignOut?(): Promise<void>;
+
+    // Rotas adicionais que o provider pode ter
+    additionalRoutes?: AuthRoute[];
+
+    // Configurações específicas do provider
+    getConfig?(): any;
+}
+
+export interface AuthConfig {
+    providers: AuthProviderClass[];
+    pages?: {
+        signIn?: string;
+        signOut?: string;
+        error?: string;
+    };
+    callbacks?: {
+        signIn?: (user: User, account: any, profile: any) => boolean | Promise<boolean>;
+        session?: (session: Session, user: User) => Session | Promise<Session>;
+        jwt?: (token: any, user: User, account: any, profile: any) => any | Promise<any>;
+    };
+    session?: {
+        strategy?: 'jwt' | 'database';
+        maxAge?: number;
+        updateAge?: number;
+    };
+    secret?: string;
+    debug?: boolean;
+}
+
+// Interface legada para compatibilidade
+export interface AuthProvider {
+    id: string;
+    name: string;
+    type: 'credentials';
+    authorize?: (credentials: Record<string, string>) => Promise<User | null> | User | null;
+}
+
 // Provider para credenciais
 export interface CredentialsConfig {
     id?: string;
@@ -67,7 +91,3 @@ export interface CredentialsConfig {
     }>;
     authorize: (credentials: Record<string, string>) => Promise<User | null> | User | null;
 }
-
-
-
-

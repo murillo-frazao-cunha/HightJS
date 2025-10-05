@@ -1,13 +1,4 @@
-import type { AuthProvider, CredentialsConfig } from './types';
+// Exportações dos providers
+export { CredentialsProvider } from './providers/credentials';
+export { DiscordProvider } from './providers/discord';
 
-/**
- * Provider para autenticação com credenciais (email/senha)
- */
-export function CredentialsProvider(config: CredentialsConfig): AuthProvider {
-    return {
-        id: config.id || 'credentials',
-        name: config.name || 'Credentials',
-        type: 'credentials',
-        authorize: config.authorize
-    };
-}

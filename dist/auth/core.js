@@ -27,23 +27,22 @@ class HWebAuth {
         };
     }
     /**
-     * Autentica um usuário com credenciais
+     * Autentica um usuário usando um provider específico
      */
-    async signIn(provider, credentials) {
-        const authProvider = this.config.providers.find(p => p.id === provider);
-        if (!authProvider || authProvider.type !== 'credentials') {
-            return null;
-        }
-        if (!authProvider.authorize) {
+    async signIn(providerId, credentials) {
+        const provider = this.config.providers.find(p => p.id === providerId);
+        if (!provider) {
+            console.error(`[hweb-auth] Provider not found: ${providerId}`);
             return null;
         }
         try {
-            const user = await authProvider.authorize(credentials);
+            // Usa o método handleSignIn do provider
+            const user = await provider.handleSignIn(credentials);
             if (!user)
                 return null;
             // Callback de signIn se definido
             if (this.config.callbacks?.signIn) {
-                const allowed = await this.config.callbacks.signIn(user, { provider }, {});
+                const allowed = await this.config.callbacks.signIn(user, { provider: providerId }, {});
                 if (!allowed)
                     return null;
             }
@@ -55,21 +54,34 @@ class HWebAuth {
             return result;
         }
         catch (error) {
-            console.error('[hweb-auth] Erro no signIn:', error);
+            console.error(`[hweb-auth] Erro no signIn com provider ${providerId}:`, error);
             return null;
         }
     }
     /**
      * Faz logout do usuário
      */
-    signOut() {
+    async signOut(req) {
+        // Busca a sessão atual para saber qual provider usar
+        const { session } = await this.middleware(req);
+        if (session?.user?.provider) {
+            const provider = this.config.providers.find(p => p.id === session.user.provider);
+            if (provider && provider.handleSignOut) {
+                try {
+                    await provider.handleSignOut();
+                }
+                catch (error) {
+                    console.error(`[hweb-auth] Erro no signOut do provider ${provider.id}:`, error);
+                }
+            }
+        }
         return http_1.HightJSResponse
             .json({ success: true })
             .clearCookie('hweb-auth-token', {
             path: '/',
             httpOnly: true,
-            secure: true, // Always use secure cookies
-            sameSite: 'strict' // Stronger CSRF protection
+            secure: true,
+            sameSite: 'strict'
         });
     }
     /**
@@ -85,6 +97,37 @@ class HWebAuth {
     async isAuthenticated(req) {
         const session = await this.getSession(req);
         return session !== null;
+    }
+    /**
+     * Retorna todos os providers disponíveis (dados públicos)
+     */
+    getProviders() {
+        return this.config.providers.map(provider => ({
+            id: provider.id,
+            name: provider.name,
+            type: provider.type,
+            config: provider.getConfig ? provider.getConfig() : {}
+        }));
+    }
+    /**
+     * Busca um provider específico
+     */
+    getProvider(id) {
+        return this.config.providers.find(p => p.id === id) || null;
+    }
+    /**
+     * Retorna todas as rotas adicionais dos providers
+     */
+    getAllAdditionalRoutes() {
+        const routes = [];
+        for (const provider of this.config.providers) {
+            if (provider.additionalRoutes) {
+                for (const route of provider.additionalRoutes) {
+                    routes.push({ provider: provider.id, route });
+                }
+            }
+        }
+        return routes;
     }
     /**
      * Cria resposta com cookie de autenticação - Secure implementation

@@ -19,6 +19,20 @@ export function createAuthRoutes(config: AuthConfig) {
             const path = params["value"];
             const route = Array.isArray(path) ? path.join('/') : path || '';
 
+            // Verifica rotas adicionais dos providers primeiro
+            const additionalRoutes = auth.getAllAdditionalRoutes();
+            for (const { provider, route: additionalRoute } of additionalRoutes) {
+                if (additionalRoute.method === 'GET' && additionalRoute.path.includes(route)) {
+                    try {
+                        return await additionalRoute.handler(req, params);
+                    } catch (error) {
+                        console.error(`[${provider} Provider] Error in additional route:`, error);
+                        return HightJSResponse.json({ error: 'Provider route error' }, { status: 500 });
+                    }
+                }
+            }
+
+            // Rotas padrão do sistema
             switch (route) {
                 case 'session':
                     return await handleSession(req, auth);
@@ -27,7 +41,7 @@ export function createAuthRoutes(config: AuthConfig) {
                     return await handleCsrf(req);
 
                 case 'providers':
-                    return await handleProviders(config);
+                    return await handleProviders(auth);
 
                 default:
                     return HightJSResponse.json({ error: 'Route not found' }, { status: 404 });
@@ -38,6 +52,20 @@ export function createAuthRoutes(config: AuthConfig) {
             const path = params["value"];
             const route = Array.isArray(path) ? path.join('/') : path || '';
 
+            // Verifica rotas adicionais dos providers primeiro
+            const additionalRoutes = auth.getAllAdditionalRoutes();
+            for (const { provider, route: additionalRoute } of additionalRoutes) {
+                if (additionalRoute.method === 'POST' && additionalRoute.path.includes(route)) {
+                    try {
+                        return await additionalRoute.handler(req, params);
+                    } catch (error) {
+                        console.error(`[${provider} Provider] Error in additional route:`, error);
+                        return HightJSResponse.json({ error: 'Provider route error' }, { status: 500 });
+                    }
+                }
+            }
+
+            // Rotas padrão do sistema
             switch (route) {
                 case 'signin':
                     return await handleSignIn(req, auth);
@@ -50,7 +78,6 @@ export function createAuthRoutes(config: AuthConfig) {
             }
         },
 
-
         // Instância do auth para uso manual
         auth
     };
@@ -59,7 +86,7 @@ export function createAuthRoutes(config: AuthConfig) {
 /**
  * Handler para GET /api/auth/session
  */
-async function handleSession(req: HightJSRequest, auth: any) {
+async function handleSession(req: HightJSRequest, auth: HWebAuth) {
     const session = await auth.getSession(req);
 
     if (!session) {
@@ -83,14 +110,8 @@ async function handleCsrf(req: HightJSRequest) {
 /**
  * Handler para GET /api/auth/providers
  */
-async function handleProviders(config: AuthConfig) {
-    const providers = config.providers
-        .filter(p => p.type === 'credentials') // Apenas credentials
-        .map(p => ({
-            id: p.id,
-            name: p.name,
-            type: p.type
-        }));
+async function handleProviders(auth: HWebAuth) {
+    const providers = auth.getProviders();
 
     return HightJSResponse.json({ providers });
 }
@@ -98,11 +119,10 @@ async function handleProviders(config: AuthConfig) {
 /**
  * Handler para POST /api/auth/signin
  */
-async function handleSignIn(req: HightJSRequest, auth: any) {
+async function handleSignIn(req: HightJSRequest, auth: HWebAuth) {
     try {
         const { provider = 'credentials', ...credentials } = await req.json();
 
-        // Apenas credentials agora
         const result = await auth.signIn(provider, credentials);
 
         if (!result) {
@@ -117,6 +137,7 @@ async function handleSignIn(req: HightJSRequest, auth: any) {
             user: result.session.user
         });
     } catch (error) {
+        console.error('[hweb-auth] Erro no handleSignIn:', error);
         return HightJSResponse.json(
             { error: 'Authentication failed' },
             { status: 500 }
@@ -127,7 +148,6 @@ async function handleSignIn(req: HightJSRequest, auth: any) {
 /**
  * Handler para POST /api/auth/signout
  */
-async function handleSignOut(req: HightJSRequest, auth: any) {
-    return auth.signOut();
+async function handleSignOut(req: HightJSRequest, auth: HWebAuth) {
+    return await auth.signOut(req);
 }
-

@@ -1,5 +1,5 @@
 import { HightJSRequest, HightJSResponse } from '../api/http';
-import type { AuthConfig, AuthProvider, User, Session } from './types';
+import type { AuthConfig, AuthProviderClass, User, Session } from './types';
 import { SessionManager } from './jwt';
 
 export class HWebAuth {
@@ -37,25 +37,23 @@ export class HWebAuth {
     }
 
     /**
-     * Autentica um usuário com credenciais
+     * Autentica um usuário usando um provider específico
      */
-    async signIn(provider: string, credentials: Record<string, string>): Promise<{ session: Session; token: string } | null> {
-        const authProvider = this.config.providers.find(p => p.id === provider);
-        if (!authProvider || authProvider.type !== 'credentials') {
-            return null;
-        }
-
-        if (!authProvider.authorize) {
+    async signIn(providerId: string, credentials: Record<string, string>): Promise<{ session: Session; token: string } | null> {
+        const provider = this.config.providers.find(p => p.id === providerId);
+        if (!provider) {
+            console.error(`[hweb-auth] Provider not found: ${providerId}`);
             return null;
         }
 
         try {
-            const user = await authProvider.authorize(credentials);
+            // Usa o método handleSignIn do provider
+            const user = await provider.handleSignIn(credentials);
             if (!user) return null;
 
             // Callback de signIn se definido
             if (this.config.callbacks?.signIn) {
-                const allowed = await this.config.callbacks.signIn(user, { provider }, {});
+                const allowed = await this.config.callbacks.signIn(user, { provider: providerId }, {});
                 if (!allowed) return null;
             }
 
@@ -68,7 +66,7 @@ export class HWebAuth {
 
             return result;
         } catch (error) {
-            console.error('[hweb-auth] Erro no signIn:', error);
+            console.error(`[hweb-auth] Erro no signIn com provider ${providerId}:`, error);
             return null;
         }
     }
@@ -76,14 +74,28 @@ export class HWebAuth {
     /**
      * Faz logout do usuário
      */
-    signOut(): HightJSResponse {
+    async signOut(req: HightJSRequest): Promise<HightJSResponse> {
+        // Busca a sessão atual para saber qual provider usar
+        const { session } = await this.middleware(req);
+
+        if (session?.user?.provider) {
+            const provider = this.config.providers.find(p => p.id === session.user.provider);
+            if (provider && provider.handleSignOut) {
+                try {
+                    await provider.handleSignOut();
+                } catch (error) {
+                    console.error(`[hweb-auth] Erro no signOut do provider ${provider.id}:`, error);
+                }
+            }
+        }
+
         return HightJSResponse
             .json({ success: true })
             .clearCookie('hweb-auth-token', {
                 path: '/',
                 httpOnly: true,
-                secure: true, // Always use secure cookies
-                sameSite: 'strict' // Stronger CSRF protection
+                secure: true,
+                sameSite: 'strict'
             });
     }
 
@@ -103,6 +115,41 @@ export class HWebAuth {
         return session !== null;
     }
 
+    /**
+     * Retorna todos os providers disponíveis (dados públicos)
+     */
+    getProviders(): any[] {
+        return this.config.providers.map(provider => ({
+            id: provider.id,
+            name: provider.name,
+            type: provider.type,
+            config: provider.getConfig ? provider.getConfig() : {}
+        }));
+    }
+
+    /**
+     * Busca um provider específico
+     */
+    getProvider(id: string): AuthProviderClass | null {
+        return this.config.providers.find(p => p.id === id) || null;
+    }
+
+    /**
+     * Retorna todas as rotas adicionais dos providers
+     */
+    getAllAdditionalRoutes(): Array<{ provider: string; route: any }> {
+        const routes: Array<{ provider: string; route: any }> = [];
+
+        for (const provider of this.config.providers) {
+            if (provider.additionalRoutes) {
+                for (const route of provider.additionalRoutes) {
+                    routes.push({ provider: provider.id, route });
+                }
+            }
+        }
+
+        return routes;
+    }
 
     /**
      * Cria resposta com cookie de autenticação - Secure implementation

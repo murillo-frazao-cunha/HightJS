@@ -1,5 +1,5 @@
 import { HightJSRequest, HightJSResponse } from '../api/http';
-import type { AuthConfig, Session } from './types';
+import type { AuthConfig, AuthProviderClass, Session } from './types';
 export declare class HWebAuth {
     private config;
     private sessionManager;
@@ -9,16 +9,16 @@ export declare class HWebAuth {
      */
     private middleware;
     /**
-     * Autentica um usuário com credenciais
+     * Autentica um usuário usando um provider específico
      */
-    signIn(provider: string, credentials: Record<string, string>): Promise<{
+    signIn(providerId: string, credentials: Record<string, string>): Promise<{
         session: Session;
         token: string;
     } | null>;
     /**
      * Faz logout do usuário
      */
-    signOut(): HightJSResponse;
+    signOut(req: HightJSRequest): Promise<HightJSResponse>;
     /**
      * Obtém a sessão atual
      */
@@ -27,6 +27,21 @@ export declare class HWebAuth {
      * Verifica se o usuário está autenticado
      */
     isAuthenticated(req: HightJSRequest): Promise<boolean>;
+    /**
+     * Retorna todos os providers disponíveis (dados públicos)
+     */
+    getProviders(): any[];
+    /**
+     * Busca um provider específico
+     */
+    getProvider(id: string): AuthProviderClass | null;
+    /**
+     * Retorna todas as rotas adicionais dos providers
+     */
+    getAllAdditionalRoutes(): Array<{
+        provider: string;
+        route: any;
+    }>;
     /**
      * Cria resposta com cookie de autenticação - Secure implementation
      */
