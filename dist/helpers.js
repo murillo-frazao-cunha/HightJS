@@ -41,15 +41,6 @@ exports.app = app;
 const index_1 = __importStar(require("./index"));
 const os_1 = __importDefault(require("os"));
 const console_1 = __importStar(require("./api/console"));
-console.log(`${console_1.Colors.FgMagenta}
-     _    _ _       _     _          _  _____ 
-    | |  | (_)     | |   | |        | |/ ____|
-    | |__| |_  __ _| |__ | |_       | | (___  
-    |  __  | |/ _\` | '_ \\| __|  _   | |\\___ \\ 
-    | |  | | | (_| | | | | |_  | |__| |____) |
-    |_|  |_|_|\\__, |_| |_|\\__|  \\____/|_____/ 
-               __/ |                          
-              |___/                           ${console_1.Colors.Reset}`);
 function getLocalExternalIp() {
     const interfaces = os_1.default.networkInterfaces();
     for (const name of Object.keys(interfaces)) {
@@ -109,6 +100,15 @@ function app(options = {}) {
          * Inicia um servidor HightJS fechado (o usuário não tem acesso ao framework)
          */
         init: async () => {
+            console.log(`${console_1.Colors.FgMagenta}
+     _    _ _       _     _          _  _____ 
+    | |  | (_)     | |   | |        | |/ ____|
+    | |__| |_  __ _| |__ | |_       | | (___  
+    |  __  | |/ _\` | '_ \\| __|  _   | |\\___ \\ 
+    | |  | | | (_| | | | | |_  | |__| |____) |
+    |_|  |_|_|\\__, |_| |_|\\__|  \\____/|_____/ 
+               __/ |                          
+              |___/                           ${console_1.Colors.Reset}`);
             const actualPort = options.port || 3000;
             const actualHostname = options.hostname || "0.0.0.0";
             if (framework === 'express') {

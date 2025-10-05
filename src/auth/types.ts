@@ -67,3 +67,7 @@ export interface CredentialsConfig {
     }>;
     authorize: (credentials: Record<string, string>) => Promise<User | null> | User | null;
 }
+
+
+
+

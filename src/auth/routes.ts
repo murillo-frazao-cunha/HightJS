@@ -75,7 +75,7 @@ async function handleSession(req: HightJSRequest, auth: any) {
 async function handleCsrf(req: HightJSRequest) {
     // Token CSRF simples para proteção
     const csrfToken = Math.random().toString(36).substring(2, 15) +
-                     Math.random().toString(36).substring(2, 15);
+        Math.random().toString(36).substring(2, 15);
 
     return HightJSResponse.json({ csrfToken });
 }
