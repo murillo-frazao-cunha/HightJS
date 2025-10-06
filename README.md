@@ -2,6 +2,18 @@
 
 > Um framework web full‑stack moderno para Node.js, focado em simplicidade, DX e velocidade. Bundler via esbuild, hot reload, roteamento automático, APIs, autenticação JWT, CLI e muito mais.
 
+<br>
+
+[![NPM](https://img.shields.io/npm/v/hightjs.svg?style=for-the-badge&labelColor=000000)](https://www.npmjs.com/package/HIGHTJS)
+
+# Precisa de ajuda?
+Caso tenha alguma dúvida, entre em contato por uma das redes abaixo:
+
+[![Discord](https://img.shields.io/badge/Discord-mulinfrc-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.com/users/1264710048786026588)
+[![Gmail](https://img.shields.io/badge/Gmail-D14836?style=for-the-badge&logo=gmail&logoColor=white)](mailto:murillofrazaocunha@gmail.com)
+[![Instagram](https://img.shields.io/badge/Instagram-E4405F?style=for-the-badge&logo=instagram&logoColor=white)](https://instagram.com/itsmuh_)
+[![GitHub](https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&logoColor=white)](https://github.com/murillo-frazao-cunha)
+
 ---
 
 ## 📑 Índice
@@ -118,7 +130,7 @@ src/
     routes/
       index.tsx             // Página inicial "/"
       about.tsx             // Página "/about"
-      blog[id].tsx         // Rota dinâmica "/blog/123"
+      blog.tsx         // Rota dinâmica "/blog/123"
     backend/
       routes/
         middleware.ts       // Middlewares globais da pasta
@@ -151,8 +163,6 @@ export default config;
 ```
 
 ### Rotas Dinâmicas com Parâmetros
-
-Use colchetes: `blog/[slug].tsx` → `/blog/post`.
 
 ```tsx
 import {RouteConfig} from "hightjs/client";
@@ -332,7 +342,7 @@ O jeito recomendado é criar as rotas diretamente no `auth.ts` e importar onde q
 `src/auth.ts`:
 
 ```ts
-import { CredentialsProvider, createAuthRoutes } from 'hightjs/auth';
+import { CredentialsProvider, DiscordProvider, createAuthRoutes } from 'hightjs/auth';
 import type { AuthConfig } from 'hightjs/auth';
 
 export const authConfig: AuthConfig = {
@@ -357,6 +367,13 @@ export const authConfig: AuthConfig = {
                 return null;
             }
         }),
+        new DiscordProvider({
+            clientId: "ID",
+            clientSecret: "TOKEN",
+            callbackUrl: "http://localhost:3000/api/auth/callback/discord",
+            scope: ['identify', 'email', 'guilds'],
+            successUrl: "http://localhost:3000/"
+        })
     ],
     session: {
         strategy: 'jwt',
@@ -380,6 +397,125 @@ export const authRoutes = createAuthRoutes(authConfig);
 ```ts
 import { authRoutes } from "../../../auth";
 export default authRoutes;
+```
+
+### Configurando o Frontend
+
+Para usar autenticação no frontend, você precisa configurar o `SessionProvider` no layout:
+
+`src/web/layout.tsx`:
+
+```tsx
+import { SessionProvider } from 'hightjs/auth/react';
+
+export const metadata = { title: 'Meu App', description: 'Descrição global' };
+
+export default function Layout({ children }: { children: React.ReactNode }) {
+  return (
+    <SessionProvider>
+      {children}
+    </SessionProvider>
+  );
+}
+```
+
+### Fazendo Login no Frontend
+
+Exemplo de como implementar login com credenciais e Discord:
+
+```tsx
+import { useSession } from 'hightjs/auth/react';
+import React, { useState } from 'react';
+
+function LoginPage() {
+    const { signIn } = useSession();
+    const [username, setUsername] = useState('');
+    const [password, setPassword] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    const handleDiscordLogin = async () => {
+        const result = await signIn('discord');
+        if(result) {
+            if (result.url != null) {
+                window.location.href = result.url
+            }
+        }
+    }
+
+    const handleLogin = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsLoading(true);
+        setError(null);
+
+        try {
+            const result = await signIn('credentials', {
+                redirect: false,
+                username: username,
+                password: password,
+                callbackUrl: '/'
+            });
+
+            if (!result || result.error) {
+                setError('Credenciais inválidas. Verifique seus dados e senha.');
+                setIsLoading(false);
+                return;
+            }
+
+        } catch (err) {
+            setError('Ocorreu um erro inesperado. Tente novamente.');
+            setIsLoading(false);
+        }
+    };
+
+    return (
+        <div>
+            <form onSubmit={handleLogin}>
+                <input
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder="Username"
+                />
+                <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Password"
+                />
+                <button type="submit" disabled={isLoading}>Login</button>
+            </form>
+
+            <button onClick={handleDiscordLogin}>Login com Discord</button>
+
+            {error && <p style={{color: 'red'}}>{error}</p>}
+        </div>
+    );
+}
+```
+
+### Acessando Dados do Usuário
+
+Para acessar informações do usuário autenticado:
+
+```tsx
+import { useSession } from 'hightjs/auth/react';
+
+function UserProfile() {
+    const { data: session, status, signOut } = useSession();
+
+    if (status === 'loading') return <p>Carregando...</p>;
+
+    if (!session) return <p>Não autenticado</p>;
+
+    return (
+        <div>
+            <h1>Bem-vindo, {session.user?.name}</h1>
+            <p>Email: {session.user?.email}</p>
+            <button onClick={() => signOut()}>Logout</button>
+        </div>
+    );
+}
 ```
 
 ### Protegendo rotas backend
@@ -408,10 +544,11 @@ export default route;
 
 ### Métodos principais
 
-- `authRoutes.auth.signIn()`
-- `authRoutes.auth.signOut()`
-- `authRoutes.auth.getSession()`
-- `authRoutes.auth.isAuthenticated()`
+- `signIn()` - Fazer login (credenciais ou provider)
+- `signOut()` - Fazer logout
+- `useSession()` - Hook para acessar sessão no frontend
+- `authRoutes.auth.getSession()` - Verificar sessão no backend
+- `authRoutes.auth.isAuthenticated()` - Verificar se está autenticado
 
 ---
 
@@ -506,3 +643,4 @@ Copyright 2025 itsmuzin
 Este projeto está licenciado sob a [Licença Apache 2.0](LICENSE).
 
 ---
+
