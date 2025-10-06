@@ -40,8 +40,11 @@ export interface AuthProviderClass {
     name: string;
     type: string;
 
+    // Para providers OAuth - retorna URL de redirecionamento
+    handleOauth?(credentials: Record<string, string>): Promise<string> | string;
+
     // Métodos principais
-    handleSignIn(credentials: Record<string, string>): Promise<User | null>;
+    handleSignIn(credentials: Record<string, string>): Promise<User | string | null>;
     handleSignOut?(): Promise<void>;
 
     // Rotas adicionais que o provider pode ter

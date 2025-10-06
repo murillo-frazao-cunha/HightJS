@@ -87,14 +87,28 @@ async function signIn(provider = 'credentials', options = {}) {
         });
         const data = await response.json();
         if (response.ok && data.success) {
-            if (redirect && typeof window !== 'undefined') {
-                window.location.href = callbackUrl || '/';
+            // Se é OAuth, redireciona para URL fornecida
+            if (data.type === 'oauth' && data.redirectUrl) {
+                if (redirect && typeof window !== 'undefined') {
+                    window.location.href = data.redirectUrl;
+                }
+                return {
+                    ok: true,
+                    status: 200,
+                    url: data.redirectUrl
+                };
             }
-            return {
-                ok: true,
-                status: 200,
-                url: callbackUrl || '/'
-            };
+            // Se é sessão (credentials), redireciona para callbackUrl
+            if (data.type === 'session') {
+                if (redirect && typeof window !== 'undefined') {
+                    window.location.href = callbackUrl || '/';
+                }
+                return {
+                    ok: true,
+                    status: 200,
+                    url: callbackUrl || '/'
+                };
+            }
         }
         else {
             return {

@@ -13,7 +13,7 @@ function createAuthRoutes(config) {
      * Uso: /api/auth/[...value].ts
      */
     return {
-        pattern: '/api/auth/[value]',
+        pattern: '/api/auth/[...value]',
         async GET(req, params) {
             const path = params["value"];
             const route = Array.isArray(path) ? path.join('/') : path || '';
@@ -108,9 +108,19 @@ async function handleSignIn(req, auth) {
         if (!result) {
             return http_1.HightJSResponse.json({ error: 'Invalid credentials' }, { status: 401 });
         }
+        // Se tem redirectUrl, é OAuth - retorna URL para redirecionamento
+        if ('redirectUrl' in result) {
+            return http_1.HightJSResponse.json({
+                success: true,
+                redirectUrl: result.redirectUrl,
+                type: 'oauth'
+            });
+        }
+        // Se tem session, é credentials - retorna sessão
         return auth.createAuthResponse(result.token, {
             success: true,
-            user: result.session.user
+            user: result.session.user,
+            type: 'session'
         });
     }
     catch (error) {

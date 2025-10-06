@@ -362,13 +362,15 @@ class HightJSResponse {
                 res.cookie(name, value, options);
             }
         });
+        // Handle redirects specifically
+        if (this._headers['Location']) {
+            res.redirect(this._headers['Location']);
+            return;
+        }
         // Envia o corpo se foi definido
         if (this._sent && this._body !== null) {
             if (this._headers['Content-Type']?.includes('application/json')) {
                 res.json(JSON.parse(this._body));
-            }
-            else if (this._headers['Location']) {
-                res.redirect(this._headers['Location']);
             }
             else {
                 res.send(this._body);

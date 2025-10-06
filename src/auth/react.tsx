@@ -75,23 +75,31 @@ export function SessionProvider({
             const data = await response.json();
 
             if (response.ok && data.success) {
-                // Atualiza a sessão após login bem-sucedido
+                // Se é OAuth, redireciona para URL fornecida
+                if (data.type === 'oauth' && data.redirectUrl) {
+                    if (redirect && typeof window !== 'undefined') {
+                        window.location.href = data.redirectUrl;
+                    }
 
-                if (redirect && typeof window !== 'undefined') {
-                    try {
-                        router.push(callbackUrl || '/');
-                    } catch (e) {
+                    return {
+                        ok: true,
+                        status: 200,
+                        url: data.redirectUrl
+                    };
+                }
+
+                // Se é sessão (credentials), redireciona para callbackUrl
+                if (data.type === 'session') {
+                    if (redirect && typeof window !== 'undefined') {
                         window.location.href = callbackUrl || '/';
                     }
 
+                    return {
+                        ok: true,
+                        status: 200,
+                        url: callbackUrl || '/'
+                    };
                 }
-                await fetchSession();
-
-                return {
-                    ok: true,
-                    status: 200,
-                    url: callbackUrl || '/'
-                };
             } else {
                 return {
                     error: data.error || 'Authentication failed',

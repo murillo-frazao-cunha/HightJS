@@ -37,21 +37,27 @@ class HWebAuth {
         }
         try {
             // Usa o método handleSignIn do provider
-            const user = await provider.handleSignIn(credentials);
-            if (!user)
+            const result = await provider.handleSignIn(credentials);
+            if (!result)
                 return null;
+            // Se resultado é string, é URL de redirecionamento OAuth
+            if (typeof result === 'string') {
+                return { redirectUrl: result };
+            }
+            // Se resultado é User, cria sessão
+            const user = result;
             // Callback de signIn se definido
             if (this.config.callbacks?.signIn) {
                 const allowed = await this.config.callbacks.signIn(user, { provider: providerId }, {});
                 if (!allowed)
                     return null;
             }
-            const result = this.sessionManager.createSession(user);
+            const sessionResult = this.sessionManager.createSession(user);
             // Callback de sessão se definido
             if (this.config.callbacks?.session) {
-                result.session = await this.config.callbacks.session(result.session, user);
+                sessionResult.session = await this.config.callbacks.session(sessionResult.session, user);
             }
-            return result;
+            return sessionResult;
         }
         catch (error) {
             console.error(`[hweb-auth] Erro no signIn com provider ${providerId}:`, error);

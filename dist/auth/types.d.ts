@@ -33,7 +33,8 @@ export interface AuthProviderClass {
     id: string;
     name: string;
     type: string;
-    handleSignIn(credentials: Record<string, string>): Promise<User | null>;
+    handleOauth?(credentials: Record<string, string>): Promise<string> | string;
+    handleSignIn(credentials: Record<string, string>): Promise<User | string | null>;
     handleSignOut?(): Promise<void>;
     additionalRoutes?: AuthRoute[];
     getConfig?(): any;

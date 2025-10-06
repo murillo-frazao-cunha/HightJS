@@ -1,10 +1,11 @@
-import type { AuthProviderClass, User, AuthRoute } from '../types';
+import type { AuthProviderClass, AuthRoute, User } from '../types';
 export interface DiscordConfig {
     id?: string;
     name?: string;
     clientId: string;
     clientSecret: string;
     callbackUrl?: string;
+    successUrl?: string;
     scope?: string[];
 }
 /**
@@ -16,9 +17,9 @@ export interface DiscordConfig {
  * Exemplo de uso:
  * ```typescript
  * new DiscordProvider({
- *   clientId: process.env.DISCORD_CLIENT_ID!,
- *   clientSecret: process.env.DISCORD_CLIENT_SECRET!,
- *   callbackUrl: "http://localhost:3000/api/auth/callback/discord"
+ * clientId: process.env.DISCORD_CLIENT_ID!,
+ * clientSecret: process.env.DISCORD_CLIENT_SECRET!,
+ * callbackUrl: "http://localhost:3000/api/auth/callback/discord"
  * })
  * ```
  *
@@ -36,9 +37,17 @@ export declare class DiscordProvider implements AuthProviderClass {
     private readonly defaultScope;
     constructor(config: DiscordConfig);
     /**
-     * Método principal para autenticar usuário com Discord OAuth
+     * Método para gerar URL OAuth (usado pelo handleSignIn)
      */
-    handleSignIn(credentials: Record<string, string>): Promise<User | null>;
+    handleOauth(credentials?: Record<string, string>): string;
+    /**
+     * Método principal - agora redireciona para OAuth ou processa callback
+     */
+    handleSignIn(credentials: Record<string, string>): Promise<User | string | null>;
+    /**
+     * Processa o callback OAuth (código → usuário)
+     */
+    private processOAuthCallback;
     /**
      * Método opcional para logout
      */
@@ -50,7 +59,7 @@ export declare class DiscordProvider implements AuthProviderClass {
     /**
      * Gera URL de autorização do Discord
      */
-    getAuthorizationUrl(state?: string): string;
+    getAuthorizationUrl(): string;
     /**
      * Retorna configuração pública do provider
      */

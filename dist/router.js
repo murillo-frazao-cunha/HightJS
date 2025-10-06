@@ -309,7 +309,15 @@ function findMatchingBackendRoute(pathname, method) {
         // Verifica se a rota tem um handler para o método HTTP atual
         if (!route.pattern || !route[method.toUpperCase()])
             continue;
-        const regexPattern = route.pattern.replace(/\[(\w+)\]/g, '(?<$1>[^/]+)');
+        const regexPattern = route.pattern
+            // [[...param]] → opcional catch-all
+            .replace(/\[\[\.\.\.(\w+)\]\]/g, '(?<$1>.+)?')
+            // [...param] → obrigatório catch-all
+            .replace(/\[\.\.\.(\w+)\]/g, '(?<$1>.+)')
+            // [[param]] → segmento opcional
+            .replace(/\[\[(\w+)\]\]/g, '(?<$1>[^/]+)?')
+            // [param] → segmento obrigatório
+            .replace(/\[(\w+)\]/g, '(?<$1>[^/]+)');
         const regex = new RegExp(`^${regexPattern}/?$`);
         const match = pathname.match(regex);
         if (match) {

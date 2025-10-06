@@ -13,15 +13,17 @@ export function createAuthRoutes(config: AuthConfig) {
      * Uso: /api/auth/[...value].ts
      */
     return {
-        pattern: '/api/auth/[value]',
+        pattern: '/api/auth/[...value]',
 
         async GET(req: HightJSRequest, params: { [key: string]: string }) {
+
             const path = params["value"];
             const route = Array.isArray(path) ? path.join('/') : path || '';
 
             // Verifica rotas adicionais dos providers primeiro
             const additionalRoutes = auth.getAllAdditionalRoutes();
             for (const { provider, route: additionalRoute } of additionalRoutes) {
+
                 if (additionalRoute.method === 'GET' && additionalRoute.path.includes(route)) {
                     try {
                         return await additionalRoute.handler(req, params);
@@ -132,9 +134,20 @@ async function handleSignIn(req: HightJSRequest, auth: HWebAuth) {
             );
         }
 
+        // Se tem redirectUrl, é OAuth - retorna URL para redirecionamento
+        if ('redirectUrl' in result) {
+            return HightJSResponse.json({
+                success: true,
+                redirectUrl: result.redirectUrl,
+                type: 'oauth'
+            });
+        }
+
+        // Se tem session, é credentials - retorna sessão
         return auth.createAuthResponse(result.token, {
             success: true,
-            user: result.session.user
+            user: result.session.user,
+            type: 'session'
         });
     } catch (error) {
         console.error('[hweb-auth] Erro no handleSignIn:', error);

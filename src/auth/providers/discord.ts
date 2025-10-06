@@ -1,5 +1,5 @@
-import type { AuthProviderClass, User, AuthRoute } from '../types';
-import { HightJSRequest, HightJSResponse } from '../../api/http';
+import type {AuthProviderClass, AuthRoute, User} from '../types';
+import {HightJSRequest, HightJSResponse} from '../../api/http';
 
 export interface DiscordConfig {
     id?: string;
@@ -7,6 +7,8 @@ export interface DiscordConfig {
     clientId: string;
     clientSecret: string;
     callbackUrl?: string;
+    successUrl?: string;
+    // Escopos OAuth, padrão: ['identify', 'email']
     scope?: string[];
 }
 
@@ -19,9 +21,9 @@ export interface DiscordConfig {
  * Exemplo de uso:
  * ```typescript
  * new DiscordProvider({
- *   clientId: process.env.DISCORD_CLIENT_ID!,
- *   clientSecret: process.env.DISCORD_CLIENT_SECRET!,
- *   callbackUrl: "http://localhost:3000/api/auth/callback/discord"
+ * clientId: process.env.DISCORD_CLIENT_ID!,
+ * clientSecret: process.env.DISCORD_CLIENT_SECRET!,
+ * callbackUrl: "http://localhost:3000/api/auth/callback/discord"
  * })
  * ```
  *
@@ -46,15 +48,35 @@ export class DiscordProvider implements AuthProviderClass {
     }
 
     /**
-     * Método principal para autenticar usuário com Discord OAuth
+     * Método para gerar URL OAuth (usado pelo handleSignIn)
      */
-    async handleSignIn(credentials: Record<string, string>): Promise<User | null> {
-        try {
-            const { code, state } = credentials;
+    handleOauth(credentials: Record<string, string> = {}): string {
+        return this.getAuthorizationUrl();
+    }
 
+    /**
+     * Método principal - agora redireciona para OAuth ou processa callback
+     */
+    async handleSignIn(credentials: Record<string, string>): Promise<User | string | null> {
+        // Se tem código, é callback - processa autenticação
+        if (credentials.code) {
+            return await this.processOAuthCallback(credentials);
+        }
+
+        // Se não tem código, é início do OAuth - retorna URL
+        return this.handleOauth(credentials);
+    }
+
+    /**
+     * Processa o callback OAuth (código → usuário)
+     */
+    private async processOAuthCallback(credentials: Record<string, string>): Promise<User | null> {
+        try {
+            const { code } = credentials;
             if (!code) {
                 throw new Error('Authorization code not provided');
             }
+
 
             // Troca o código por access token
             const tokenResponse = await fetch('https://discord.com/api/oauth2/token', {
@@ -68,12 +90,12 @@ export class DiscordProvider implements AuthProviderClass {
                     grant_type: 'authorization_code',
                     code,
                     redirect_uri: this.config.callbackUrl || '',
-                    scope: (this.config.scope || this.defaultScope).join(' ')
                 }),
             });
 
             if (!tokenResponse.ok) {
                 const error = await tokenResponse.text();
+                // O erro original "Invalid \"code\" in request." acontece aqui.
                 throw new Error(`Failed to exchange code for token: ${error}`);
             }
 
@@ -109,7 +131,7 @@ export class DiscordProvider implements AuthProviderClass {
             };
 
         } catch (error) {
-            console.error(`[${this.id} Provider] Error during sign in:`, error);
+            console.error(`[${this.id} Provider] Error during OAuth callback:`, error);
             return null;
         }
     }
@@ -127,25 +149,6 @@ export class DiscordProvider implements AuthProviderClass {
      * Rotas adicionais específicas do Discord OAuth
      */
     public additionalRoutes: AuthRoute[] = [
-        // Rota para iniciar autenticação
-        {
-            method: 'GET',
-            path: '/api/auth/signin/discord',
-            handler: async (req: HightJSRequest, params: any) => {
-                const state = Math.random().toString(36).substring(2);
-                const authUrl = this.getAuthorizationUrl(state);
-
-                return HightJSResponse
-                    .redirect(authUrl)
-                    .cookie('discord-oauth-state', state, {
-                        httpOnly: true,
-                        secure: true,
-                        sameSite: 'strict',
-                        maxAge: 600000 // 10 minutos
-                    });
-            }
-        },
-
         // Rota de callback do Discord
         {
             method: 'GET',
@@ -153,59 +156,47 @@ export class DiscordProvider implements AuthProviderClass {
             handler: async (req: HightJSRequest, params: any) => {
                 const url = new URL(req.url || '', 'http://localhost');
                 const code = url.searchParams.get('code');
-                const state = url.searchParams.get('state');
-                const storedState = req.cookie('discord-oauth-state');
-
-                // Validação de state para prevenir CSRF
-                if (!state || !storedState || state !== storedState) {
-                    return HightJSResponse.json(
-                        { error: 'Invalid state parameter' },
-                        { status: 400 }
-                    );
-                }
 
                 if (!code) {
-                    return HightJSResponse.json(
-                        { error: 'Authorization code not provided' },
-                        { status: 400 }
-                    );
+                    return HightJSResponse.json({ error: 'Authorization code not provided' }, { status: 400 });
                 }
 
                 try {
-                    // Usa o método handleSignIn para processar
-                    const user = await this.handleSignIn({ code, state });
+                    // CORREÇÃO: O fluxo correto é delegar o 'code' para o endpoint de signin
+                    // principal, que processará o código uma única vez. A implementação anterior
+                    // usava o código duas vezes, causando o erro 'invalid_grant'.
+                    const authResponse = await fetch(`${req.headers.origin || 'http://localhost:3000'}/api/auth/signin`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            provider: this.id,
+                            code,
+                        })
+                    });
 
-                    if (!user) {
-                        return HightJSResponse.redirect('/auth/error?error=AuthenticationFailed');
+                    if (authResponse.ok) {
+                        // Propaga o cookie de sessão retornado pelo endpoint de signin
+                        // e redireciona o usuário para a página de sucesso.
+                        const setCookieHeader = authResponse.headers.get('set-cookie');
+                        if(this.config.successUrl) {
+                            return HightJSResponse
+                                .redirect(this.config.successUrl)
+                                .header('Set-Cookie', setCookieHeader || '');
+                        }
+                        return HightJSResponse.json({ success: true })
+                            .header('Set-Cookie', setCookieHeader || '');
+                    } else {
+                        const errorText = await authResponse.text();
+                        console.error(`[${this.id} Provider] Session creation failed during callback. Status: ${authResponse.status}, Body: ${errorText}`);
+                        return HightJSResponse.json({ error: 'Session creation failed' }, { status: 500 });
                     }
-
-                    // Aqui você precisaria integrar com o sistema de sessão
-                    // Por enquanto, vamos redirecionar com sucesso
-                    return HightJSResponse
-                        .redirect('/auth/success')
-                        .clearCookie('discord-oauth-state');
 
                 } catch (error) {
-                    console.error(`[${this.id} Provider] Callback error:`, error);
-                    return HightJSResponse.redirect('/auth/error?error=CallbackError');
+                    console.error(`[${this.id} Provider] Callback handler fetch error:`, error);
+                    return HightJSResponse.json({ error: 'Internal server error' }, { status: 500 });
                 }
-            }
-        },
-
-        // Rota para obter configuração pública
-        {
-            method: 'GET',
-            path: '/api/auth/discord/config',
-            handler: async (req: HightJSRequest, params: any) => {
-                return HightJSResponse.json({
-                    config: {
-                        id: this.id,
-                        name: this.name,
-                        type: this.type,
-                        authUrl: '/api/auth/signin/discord',
-                        callbackUrl: this.config.callbackUrl
-                    }
-                });
             }
         }
     ];
@@ -213,17 +204,13 @@ export class DiscordProvider implements AuthProviderClass {
     /**
      * Gera URL de autorização do Discord
      */
-    getAuthorizationUrl(state?: string): string {
+    getAuthorizationUrl(): string {
         const params = new URLSearchParams({
             client_id: this.config.clientId,
             redirect_uri: this.config.callbackUrl || '',
             response_type: 'code',
             scope: (this.config.scope || this.defaultScope).join(' ')
         });
-
-        if (state) {
-            params.append('state', state);
-        }
 
         return `https://discord.com/api/oauth2/authorize?${params.toString()}`;
     }

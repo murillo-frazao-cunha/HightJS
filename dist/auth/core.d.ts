@@ -14,6 +14,8 @@ export declare class HWebAuth {
     signIn(providerId: string, credentials: Record<string, string>): Promise<{
         session: Session;
         token: string;
+    } | {
+        redirectUrl: string;
     } | null>;
     /**
      * Faz logout do usuário
