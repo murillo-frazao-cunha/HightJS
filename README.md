@@ -4,7 +4,7 @@
 
 <br>
 
-[![NPM](https://img.shields.io/npm/v/hightjs.svg?style=for-the-badge&labelColor=000000)](https://www.npmjs.com/package/HIGHTJS)
+[![NPM](https://img.shields.io/npm/v/hightjs.svg?style=for-the-badge&labelColor=000000)](https://www.npmjs.com/package/hightjs)
 
 # Precisa de ajuda?
 Caso tenha alguma dúvida, entre em contato por uma das redes abaixo:
