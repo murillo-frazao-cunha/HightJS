@@ -435,12 +435,7 @@ function LoginPage() {
     const [error, setError] = useState<string | null>(null);
 
     const handleDiscordLogin = async () => {
-        const result = await signIn('discord');
-        if(result) {
-            if (result.url != null) {
-                window.location.href = result.url
-            }
-        }
+        await signIn('discord', { redirect: true });
     }
 
     const handleLogin = async (e: React.FormEvent) => {
@@ -450,7 +445,6 @@ function LoginPage() {
 
         try {
             const result = await signIn('credentials', {
-                redirect: false,
                 username: username,
                 password: password,
                 callbackUrl: '/'
@@ -461,7 +455,7 @@ function LoginPage() {
                 setIsLoading(false);
                 return;
             }
-
+            router.push("/")
         } catch (err) {
             setError('Ocorreu um erro inesperado. Tente novamente.');
             setIsLoading(false);
