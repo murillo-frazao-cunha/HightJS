@@ -347,7 +347,7 @@ import type { AuthConfig } from 'hightjs/auth';
 
 export const authConfig: AuthConfig = {
     providers: [
-        CredentialsProvider({
+        new CredentialsProvider({
             id: 'credentials',
             name: 'Credentials',
             credentials: {
