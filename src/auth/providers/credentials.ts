@@ -79,42 +79,7 @@ export class CredentialsProvider implements AuthProviderClass {
         }
     }
 
-    /**
-     * Método opcional para logout (pode ser sobrescrito se necessário)
-     */
-    async handleSignOut?(): Promise<void> {
-        // Credentials provider não precisa fazer nada específico no logout
-        // O core já cuida de limpar cookies e tokens
-        console.log(`[${this.id} Provider] User signed out`);
-    }
 
-    /**
-     * Rotas adicionais específicas do provider (opcional)
-     */
-    public additionalRoutes?: AuthRoute[] = [
-        {
-            method: 'GET',
-            path: '/api/auth/credentials/config',
-            handler: async (req: HightJSRequest, params: any) => {
-                // Retorna configuração das credenciais (sem dados sensíveis)
-                const safeConfig = {
-                    id: this.id,
-                    name: this.name,
-                    type: this.type,
-                    credentials: Object.entries(this.config.credentials).reduce((acc, [key, field]) => {
-                        acc[key] = {
-                            label: field.label,
-                            type: field.type,
-                            placeholder: field.placeholder
-                        };
-                        return acc;
-                    }, {} as Record<string, any>)
-                };
-
-                return HightJSResponse.json({ config: safeConfig });
-            }
-        }
-    ];
 
     /**
      * Retorna configuração pública do provider

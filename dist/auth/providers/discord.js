@@ -162,14 +162,6 @@ class DiscordProvider {
         }
     }
     /**
-     * Método opcional para logout
-     */
-    async handleSignOut() {
-        // Discord OAuth não precisa de logout especial
-        // O token será invalidado pelo tempo de vida
-        console.log(`[${this.id} Provider] User signed out`);
-    }
-    /**
      * Gera URL de autorização do Discord
      */
     getAuthorizationUrl() {

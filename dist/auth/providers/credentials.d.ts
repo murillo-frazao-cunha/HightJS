@@ -1,4 +1,4 @@
-import type { AuthProviderClass, User, AuthRoute } from '../types';
+import type { AuthProviderClass, User } from '../types';
 export interface CredentialsConfig {
     id?: string;
     name?: string;
@@ -45,14 +45,6 @@ export declare class CredentialsProvider implements AuthProviderClass {
      * Método principal para autenticar usuário com credenciais
      */
     handleSignIn(credentials: Record<string, string>): Promise<User | null>;
-    /**
-     * Método opcional para logout (pode ser sobrescrito se necessário)
-     */
-    handleSignOut?(): Promise<void>;
-    /**
-     * Rotas adicionais específicas do provider (opcional)
-     */
-    additionalRoutes?: AuthRoute[];
     /**
      * Retorna configuração pública do provider
      */

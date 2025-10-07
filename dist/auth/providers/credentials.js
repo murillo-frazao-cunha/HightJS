@@ -1,7 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CredentialsProvider = void 0;
-const http_1 = require("../../api/http");
 /**
  * Provider para autenticação com credenciais (email/senha)
  *
@@ -31,32 +30,6 @@ const http_1 = require("../../api/http");
 class CredentialsProvider {
     constructor(config) {
         this.type = 'credentials';
-        /**
-         * Rotas adicionais específicas do provider (opcional)
-         */
-        this.additionalRoutes = [
-            {
-                method: 'GET',
-                path: '/api/auth/credentials/config',
-                handler: async (req, params) => {
-                    // Retorna configuração das credenciais (sem dados sensíveis)
-                    const safeConfig = {
-                        id: this.id,
-                        name: this.name,
-                        type: this.type,
-                        credentials: Object.entries(this.config.credentials).reduce((acc, [key, field]) => {
-                            acc[key] = {
-                                label: field.label,
-                                type: field.type,
-                                placeholder: field.placeholder
-                            };
-                            return acc;
-                        }, {})
-                    };
-                    return http_1.HightJSResponse.json({ config: safeConfig });
-                }
-            }
-        ];
         this.config = config;
         this.id = config.id || 'credentials';
         this.name = config.name || 'Credentials';
@@ -84,14 +57,6 @@ class CredentialsProvider {
             console.error(`[${this.id} Provider] Error during sign in:`, error);
             return null;
         }
-    }
-    /**
-     * Método opcional para logout (pode ser sobrescrito se necessário)
-     */
-    async handleSignOut() {
-        // Credentials provider não precisa fazer nada específico no logout
-        // O core já cuida de limpar cookies e tokens
-        console.log(`[${this.id} Provider] User signed out`);
     }
     /**
      * Retorna configuração pública do provider

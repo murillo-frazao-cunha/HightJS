@@ -137,15 +137,6 @@ export class DiscordProvider implements AuthProviderClass {
     }
 
     /**
-     * Método opcional para logout
-     */
-    async handleSignOut?(): Promise<void> {
-        // Discord OAuth não precisa de logout especial
-        // O token será invalidado pelo tempo de vida
-        console.log(`[${this.id} Provider] User signed out`);
-    }
-
-    /**
      * Rotas adicionais específicas do Discord OAuth
      */
     public additionalRoutes: AuthRoute[] = [
@@ -180,6 +171,7 @@ export class DiscordProvider implements AuthProviderClass {
                         // Propaga o cookie de sessão retornado pelo endpoint de signin
                         // e redireciona o usuário para a página de sucesso.
                         const setCookieHeader = authResponse.headers.get('set-cookie');
+
                         if(this.config.successUrl) {
                             return HightJSResponse
                                 .redirect(this.config.successUrl)

@@ -75,6 +75,7 @@ export function SessionProvider({
             const data = await response.json();
 
             if (response.ok && data.success) {
+                await fetchSession();
                 // Se é OAuth, redireciona para URL fornecida
                 if (data.type === 'oauth' && data.redirectUrl) {
                     if (redirect && typeof window !== 'undefined') {

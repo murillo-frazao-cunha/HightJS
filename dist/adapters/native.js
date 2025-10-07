@@ -90,11 +90,6 @@ class NativeResponseWrapper {
         if (name !== sanitizedName || String(value) !== sanitizedValue) {
             console.warn(`Aviso: Tentativa potencial de HTTP Header Injection foi detectada e sanitizada. Header original: "${name}"`);
         }
-        // Evita setar o header 'Set-Cookie' diretamente para não conflitar com o método cookie().
-        if (sanitizedName.toLowerCase() === 'set-cookie') {
-            console.warn(`Aviso: Use o método .cookie() para definir cookies, não o .header().`);
-            return this;
-        }
         this.headers[sanitizedName] = sanitizedValue;
         return this;
     }

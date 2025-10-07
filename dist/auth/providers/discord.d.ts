@@ -49,10 +49,6 @@ export declare class DiscordProvider implements AuthProviderClass {
      */
     private processOAuthCallback;
     /**
-     * Método opcional para logout
-     */
-    handleSignOut?(): Promise<void>;
-    /**
      * Rotas adicionais específicas do Discord OAuth
      */
     additionalRoutes: AuthRoute[];
