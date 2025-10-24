@@ -1,4 +1,4 @@
-import { RouteConfig, BackendRouteConfig } from './types';
+import { RouteConfig, BackendRouteConfig, HightMiddleware, WebSocketHandler } from './types';
 /**
  * Limpa todo o cache de rotas carregadas
  */
@@ -76,3 +76,26 @@ export declare function loadNotFound(webDir: string): {
 export declare function getNotFound(): {
     componentPath: string;
 } | null;
+/**
+ * Processa e registra rotas WebSocket encontradas nas rotas backend
+ */
+export declare function processWebSocketRoutes(): void;
+/**
+ * Encontra a rota WebSocket correspondente para uma URL
+ */
+export declare function findMatchingWebSocketRoute(pathname: string): {
+    route: {
+        pattern: string;
+        handler: WebSocketHandler;
+        middleware?: HightMiddleware[];
+    };
+    params: {
+        [key: string]: string;
+    };
+} | null;
+/**
+ * Configura WebSocket upgrade no servidor HTTP existente
+ * @param server Servidor HTTP (Express, Fastify ou Native)
+ * @param hotReloadManager Instância do gerenciador de hot-reload para coordenação
+ */
+export declare function setupWebSocketUpgrade(server: any, hotReloadManager?: any): void;

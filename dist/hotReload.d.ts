@@ -4,14 +4,19 @@ export declare class HotReloadManager {
     private watchers;
     private projectDir;
     private clients;
-    private pingInterval;
     private backendApiChangeCallback;
     private frontendChangeCallback;
+    private isShuttingDown;
+    private debounceTimers;
+    private customHotReloadListener;
     constructor(projectDir: string);
     start(): Promise<void>;
     handleUpgrade(request: IncomingMessage, socket: any, head: Buffer): void;
     private setupWebSocketServer;
+    private cleanupClient;
     private setupWatchers;
+    private debounce;
+    private handleAnySrcChange;
     private notifyClients;
     private restartServer;
     stop(): void;
@@ -19,5 +24,7 @@ export declare class HotReloadManager {
     private clearBackendCache;
     onBackendApiChange(callback: () => void): void;
     onFrontendChange(callback: () => void): void;
+    setHotReloadListener(listener: (file: string) => Promise<void> | void): void;
+    removeHotReloadListener(): void;
     private checkFrontendBuild;
 }

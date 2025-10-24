@@ -5,6 +5,5 @@ export * from './core';
 export * from './routes';
 export * from './jwt';
 
-export { CredentialsProvider, DiscordProvider } from './providers';
+export { CredentialsProvider, DiscordProvider, GoogleProvider } from './providers';
 export { createAuthRoutes } from './routes';
-

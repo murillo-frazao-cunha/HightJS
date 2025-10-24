@@ -1,15 +1,32 @@
-import express from 'express';
 import path from 'path';
 import fs from 'fs';
-import { ExpressAdapter } from './adapters/express';
-import { build, watch, buildWithChunks, watchWithChunks } from './builder';
-import { HightJSOptions, RequestHandler, RouteConfig, BackendRouteConfig, BackendHandler, HightMiddleware } from './types';
-import { loadRoutes, findMatchingRoute, loadBackendRoutes, findMatchingBackendRoute, loadLayout, getLayout, loadNotFound, getNotFound } from './router';
-import { render } from './renderer';
-import { HightJSRequest, HightJSResponse } from './api/http';
-import { HotReloadManager } from './hotReload';
-import { FrameworkAdapterFactory } from './adapters/factory';
-import { GenericRequest, GenericResponse } from './types/framework';
+import {ExpressAdapter} from './adapters/express';
+import {build, buildWithChunks, watch, watchWithChunks} from './builder';
+import {
+    BackendHandler,
+    BackendRouteConfig,
+    HightJSOptions,
+    HightMiddleware,
+    RequestHandler,
+    RouteConfig
+} from './types';
+import {
+    findMatchingBackendRoute,
+    findMatchingRoute,
+    getLayout,
+    getNotFound,
+    loadBackendRoutes,
+    loadLayout,
+    loadNotFound,
+    loadRoutes,
+    processWebSocketRoutes,
+    setupWebSocketUpgrade
+} from './router';
+import {render} from './renderer';
+import {HightJSRequest, HightJSResponse} from './api/http';
+import {HotReloadManager} from './hotReload';
+import {FrameworkAdapterFactory} from './adapters/factory';
+import {GenericRequest, GenericResponse} from './types/framework';
 import Console, {Colors} from "./api/console"
 
 // Exporta apenas os tipos e classes para o backend
@@ -25,7 +42,8 @@ export type { GenericRequest, GenericResponse, CookieOptions } from './types/fra
 // Exporta os helpers para facilitar integração
 export { app } from './helpers';
 
-// Exporta o sistema de autenticação
+// Exporta o sistema de WebSocket
+export type { WebSocketContext, WebSocketHandler } from './types';
 
 // Função para verificar se o projeto é grande o suficiente para se beneficiar de chunks
 function isLargeProject(projectDir: string): boolean {
@@ -207,22 +225,26 @@ export default function hweb(options: HightJSOptions) {
         entryPoint = createEntryFile(dir, frontendRoutes);
     };
 
-    const app = {
+    return {
         prepare: async () => {
             const isProduction = !dev;
 
             if (!isProduction) {
-                // Inicia hot reload apenas em desenvolvimento (sem logs)
+                // Inicia hot reload apenas em desenvolvimento (com suporte ao main)
                 hotReloadManager = new HotReloadManager(dir);
                 await hotReloadManager.start();
 
-                // Adiciona callback para recarregar rotas de backend quando mudarem
+                // Adiciona callback para recarregar TUDO quando qualquer arquivo mudar
                 hotReloadManager.onBackendApiChange(() => {
+                    Console.info('🔄 Recarregando backend e dependências...');
+
                     loadBackendRoutes(userBackendRoutesDir);
+                    processWebSocketRoutes(); // Processa rotas WS após recarregar backend
                 });
 
                 // Adiciona callback para regenerar entry file quando frontend mudar
                 hotReloadManager.onFrontendChange(() => {
+                    Console.info('🔄 Regenerando frontend...');
                     regenerateEntryFile();
                 });
             }
@@ -231,13 +253,16 @@ export default function hweb(options: HightJSOptions) {
             frontendRoutes = loadRoutes(userWebRoutesDir);
             loadBackendRoutes(userBackendRoutesDir);
 
-           // Carrega layout.tsx ANTES de criar o entry file
+            // Processa rotas WebSocket após carregar backend
+            processWebSocketRoutes();
+
+            // Carrega layout.tsx ANTES de criar o entry file
             const layout = loadLayout(userWebDir);
 
-           const notFound = loadNotFound(userWebDir);
+            const notFound = loadNotFound(userWebDir);
 
             const outDir = path.join(dir, 'hweb-dist');
-            fs.mkdirSync(outDir, { recursive: true });
+            fs.mkdirSync(outDir, {recursive: true});
 
             entryPoint = createEntryFile(dir, frontendRoutes);
 
@@ -278,6 +303,15 @@ export default function hweb(options: HightJSOptions) {
                 const instrumentationPath = path.join(dir, 'src', instrumentationFile);
                 // dar require, e executar a função principal do arquivo
                 const instrumentation = require(instrumentationPath);
+
+                // Registra o listener de hot reload se existir
+                if (instrumentation.hotReloadListener && typeof instrumentation.hotReloadListener === 'function') {
+                    if (hotReloadManager) {
+                        hotReloadManager.setHotReloadListener(instrumentation.hotReloadListener);
+                        Console.info('✅ Hot reload listener registrado');
+                    }
+                }
+
                 if (typeof instrumentation === 'function') {
                     instrumentation();
                 } else if (typeof instrumentation.default === 'function') {
@@ -298,7 +332,7 @@ export default function hweb(options: HightJSOptions) {
                 (genericReq as any).hwebDev = dev;
                 (genericReq as any).hotReloadManager = hotReloadManager;
 
-                const { pathname } = new URL(genericReq.url, `http://${genericReq.headers.host || 'localhost'}`);
+                const {pathname} = new URL(genericReq.url, `http://${genericReq.headers.host || 'localhost'}`);
                 const method = genericReq.method.toUpperCase();
 
                 // 1. Verifica se é WebSocket upgrade para hot reload
@@ -456,43 +490,18 @@ export default function hweb(options: HightJSOptions) {
 
         // Método para configurar WebSocket upgrade nos servidores Express e Fastify
         setupWebSocket: (server: any) => {
-            if (hotReloadManager) {
-                // Detecta se é um servidor Express ou Fastify
-                const isExpressServer = FrameworkAdapterFactory.getCurrentAdapter() instanceof ExpressAdapter;
+            // Detecta se é um servidor Express ou Fastify
+            const isExpressServer = FrameworkAdapterFactory.getCurrentAdapter() instanceof ExpressAdapter;
+            const actualServer = isExpressServer ? server : (server.server || server);
 
-
-                if (isExpressServer) {
-
-                    server.on('upgrade', (request: any, socket: any, head: Buffer) => {
-                        const { pathname } = new URL(request.url, `http://${request.headers.host}`);
-
-                        if (pathname === '/hweb-hotreload/') {
-                            hotReloadManager!.handleUpgrade(request, socket, head);
-                        } else {
-                            socket.destroy();
-                        }
-                    });
-                } else {
-
-                    // Fastify usa um approach diferente para WebSockets
-                    const actualServer = server.server || server;
-                    actualServer.on('upgrade', (request: any, socket: any, head: Buffer) => {
-                        const { pathname } = new URL(request.url, `http://${request.headers.host}`);
-
-                        if (pathname === '/hweb-hotreload/') {
-                            hotReloadManager!.handleUpgrade(request, socket, head);
-                        } else {
-                            socket.destroy();
-                        }
-                    });
-                }
-            }
+            // Usa o sistema coordenado de WebSocket upgrade que integra hot-reload e rotas de usuário
+            setupWebSocketUpgrade(actualServer, hotReloadManager);
         },
 
         build: async () => {
             const msg = Console.dynamicLine(`  ${Colors.FgYellow}●  ${Colors.Reset}Iniciando build do cliente para produção`);
             const outDir = path.join(dir, 'hweb-dist');
-            fs.mkdirSync(outDir, { recursive: true });
+            fs.mkdirSync(outDir, {recursive: true});
 
             const routes = loadRoutes(userWebRoutesDir);
             const entryPoint = createEntryFile(dir, routes);
@@ -509,6 +518,4 @@ export default function hweb(options: HightJSOptions) {
             }
         }
     };
-
-    return app;
 }

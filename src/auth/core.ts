@@ -70,7 +70,7 @@ export class HWebAuth {
 
             // Callback de sessão se definido
             if (this.config.callbacks?.session) {
-                sessionResult.session = await this.config.callbacks.session(sessionResult.session, user);
+                sessionResult.session = await this.config.callbacks.session({session: sessionResult.session, user, provider: providerId});
             }
 
             return sessionResult;
@@ -103,7 +103,7 @@ export class HWebAuth {
             .clearCookie('hweb-auth-token', {
                 path: '/',
                 httpOnly: true,
-                secure: true,
+                secure: this.config.secureCookies || false,
                 sameSite: 'strict'
             });
     }
@@ -168,7 +168,7 @@ export class HWebAuth {
             .json(data)
             .cookie('hweb-auth-token', token, {
                 httpOnly: true,
-                secure: true, // Always secure, even in development
+                secure: this.config.secureCookies || false, // Always secure, even in development
                 sameSite: 'strict', // Prevent CSRF attacks
                 maxAge: (this.config.session?.maxAge || 86400) * 1000,
                 path: '/',

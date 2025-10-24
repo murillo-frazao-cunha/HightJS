@@ -26,7 +26,17 @@ function App({ componentMap, routes, initialComponentPath, initialParams, layout
 
     const findRouteForPath = useCallback((path: string) => {
         for (const route of routes) {
-            const regexPattern = route.pattern.replace(/\[(\w+)\]/g, '(?<$1>[^/]+)');
+            const regexPattern = route.pattern
+                // [[...param]] → opcional catch-all
+                .replace(/\[\[\.\.\.(\w+)\]\]/g, '(?<$1>.+)?')
+                // [...param] → obrigatório catch-all
+                .replace(/\[\.\.\.(\w+)\]/g, '(?<$1>.+)')
+                // /[[param]] → opcional com barra também opcional
+                .replace(/\/\[\[(\w+)\]\]/g, '(?:/(?<$1>[^/]+))?')
+                // [[param]] → segmento opcional (sem barra anterior)
+                .replace(/\[\[(\w+)\]\]/g, '(?<$1>[^/]+)?')
+                // [param] → segmento obrigatório
+                .replace(/\[(\w+)\]/g, '(?<$1>[^/]+)');
             const regex = new RegExp(`^${regexPattern}/?$`);
             const match = path.match(regex);
             if (match) {
@@ -300,3 +310,4 @@ if (document.readyState === 'loading') {
 } else {
     initializeClient();
 }
+

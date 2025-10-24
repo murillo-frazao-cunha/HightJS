@@ -60,7 +60,6 @@ Object.defineProperty(exports, "FrameworkAdapterFactory", { enumerable: true, ge
 // Exporta os helpers para facilitar integração
 var helpers_1 = require("./helpers");
 Object.defineProperty(exports, "app", { enumerable: true, get: function () { return helpers_1.app; } });
-// Exporta o sistema de autenticação
 // Função para verificar se o projeto é grande o suficiente para se beneficiar de chunks
 function isLargeProject(projectDir) {
     try {
@@ -210,25 +209,30 @@ function hweb(options) {
         // Regenera o entry file
         entryPoint = createEntryFile(dir, frontendRoutes);
     };
-    const app = {
+    return {
         prepare: async () => {
             const isProduction = !dev;
             if (!isProduction) {
-                // Inicia hot reload apenas em desenvolvimento (sem logs)
+                // Inicia hot reload apenas em desenvolvimento (com suporte ao main)
                 hotReloadManager = new hotReload_1.HotReloadManager(dir);
                 await hotReloadManager.start();
-                // Adiciona callback para recarregar rotas de backend quando mudarem
+                // Adiciona callback para recarregar TUDO quando qualquer arquivo mudar
                 hotReloadManager.onBackendApiChange(() => {
+                    console_1.default.info('🔄 Recarregando backend e dependências...');
                     (0, router_1.loadBackendRoutes)(userBackendRoutesDir);
+                    (0, router_1.processWebSocketRoutes)(); // Processa rotas WS após recarregar backend
                 });
                 // Adiciona callback para regenerar entry file quando frontend mudar
                 hotReloadManager.onFrontendChange(() => {
+                    console_1.default.info('🔄 Regenerando frontend...');
                     regenerateEntryFile();
                 });
             }
             // ORDEM IMPORTANTE: Carrega TUDO antes de criar o arquivo de entrada
             frontendRoutes = (0, router_1.loadRoutes)(userWebRoutesDir);
             (0, router_1.loadBackendRoutes)(userBackendRoutesDir);
+            // Processa rotas WebSocket após carregar backend
+            (0, router_1.processWebSocketRoutes)();
             // Carrega layout.tsx ANTES de criar o entry file
             const layout = (0, router_1.loadLayout)(userWebDir);
             const notFound = (0, router_1.loadNotFound)(userWebDir);
@@ -269,6 +273,13 @@ function hweb(options) {
                 const instrumentationPath = path_1.default.join(dir, 'src', instrumentationFile);
                 // dar require, e executar a função principal do arquivo
                 const instrumentation = require(instrumentationPath);
+                // Registra o listener de hot reload se existir
+                if (instrumentation.hotReloadListener && typeof instrumentation.hotReloadListener === 'function') {
+                    if (hotReloadManager) {
+                        hotReloadManager.setHotReloadListener(instrumentation.hotReloadListener);
+                        console_1.default.info('✅ Hot reload listener registrado');
+                    }
+                }
                 if (typeof instrumentation === 'function') {
                     instrumentation();
                 }
@@ -431,34 +442,11 @@ function hweb(options) {
         },
         // Método para configurar WebSocket upgrade nos servidores Express e Fastify
         setupWebSocket: (server) => {
-            if (hotReloadManager) {
-                // Detecta se é um servidor Express ou Fastify
-                const isExpressServer = factory_1.FrameworkAdapterFactory.getCurrentAdapter() instanceof express_1.ExpressAdapter;
-                if (isExpressServer) {
-                    server.on('upgrade', (request, socket, head) => {
-                        const { pathname } = new URL(request.url, `http://${request.headers.host}`);
-                        if (pathname === '/hweb-hotreload/') {
-                            hotReloadManager.handleUpgrade(request, socket, head);
-                        }
-                        else {
-                            socket.destroy();
-                        }
-                    });
-                }
-                else {
-                    // Fastify usa um approach diferente para WebSockets
-                    const actualServer = server.server || server;
-                    actualServer.on('upgrade', (request, socket, head) => {
-                        const { pathname } = new URL(request.url, `http://${request.headers.host}`);
-                        if (pathname === '/hweb-hotreload/') {
-                            hotReloadManager.handleUpgrade(request, socket, head);
-                        }
-                        else {
-                            socket.destroy();
-                        }
-                    });
-                }
-            }
+            // Detecta se é um servidor Express ou Fastify
+            const isExpressServer = factory_1.FrameworkAdapterFactory.getCurrentAdapter() instanceof express_1.ExpressAdapter;
+            const actualServer = isExpressServer ? server : (server.server || server);
+            // Usa o sistema coordenado de WebSocket upgrade que integra hot-reload e rotas de usuário
+            (0, router_1.setupWebSocketUpgrade)(actualServer, hotReloadManager);
         },
         build: async () => {
             const msg = console_1.default.dynamicLine(`  ${console_1.Colors.FgYellow}●  ${console_1.Colors.Reset}Iniciando build do cliente para produção`);
@@ -476,5 +464,4 @@ function hweb(options) {
             }
         }
     };
-    return app;
 }

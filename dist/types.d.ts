@@ -1,6 +1,19 @@
 import type { ComponentType } from 'react';
 import type { GenericRequest } from './types/framework';
 import { HightJSRequest, HightJSResponse } from "./api/http";
+import { WebSocket } from 'ws';
+import { IncomingMessage } from 'http';
+export interface WebSocketContext {
+    ws: WebSocket;
+    req: IncomingMessage;
+    hightReq: HightJSRequest;
+    url: URL;
+    params: Record<string, string>;
+    query: Record<string, string>;
+    send: (data: any) => void;
+    close: (code?: number, reason?: string) => void;
+    broadcast: (data: any, exclude?: WebSocket[]) => void;
+}
 export interface HightJSOptions {
     dev?: boolean;
     hostname?: string;
@@ -31,7 +44,11 @@ params: {
     [key: string]: string;
 }, next: () => Promise<HightJSResponse>) => Promise<HightJSResponse> | HightJSResponse;
 /**
- * Define a estrutura de cada rota da API, com suporte para métodos HTTP.
+ * Define o formato de uma função que manipula uma rota WebSocket.
+ */
+export type WebSocketHandler = (context: WebSocketContext) => Promise<void> | void;
+/**
+ * Define a estrutura de cada rota da API, com suporte para métodos HTTP e WebSocket.
  */
 export interface BackendRouteConfig {
     pattern: string;
@@ -39,5 +56,6 @@ export interface BackendRouteConfig {
     POST?: BackendHandler;
     PUT?: BackendHandler;
     DELETE?: BackendHandler;
+    WS?: WebSocketHandler;
     middleware?: HightMiddleware[];
 }

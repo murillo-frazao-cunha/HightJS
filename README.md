@@ -23,6 +23,7 @@ Caso tenha alguma dúvida, entre em contato por uma das redes abaixo:
 - [📦 Estrutura Recomendada](#-estrutura-recomendada)
 - [🖥️ Rotas Frontend (Páginas)](#-rotas-frontend)
 - [🌐 Rotas Backend (API)](#-rotas-backend)
+- [🛜 WebSocket](#-websocket)
 - [🧩 Middlewares](#-middlewares)
 - [🔐 Autenticação (HightJS/auth)](#-autenticação-hightjsauth)
 - [🛠️ CLI](#-cli)
@@ -38,6 +39,10 @@ Caso tenha alguma dúvida, entre em contato por uma das redes abaixo:
 ## ✨ Principais Recursos
 
 - **Roteamento automático** de páginas [`src/web/routes`] e APIs [`src/web/backend/routes`]
+- **React 19** com client-side hydration
+- **TypeScript** first (totalmente tipado)
+- **WebSockets** nativo nas rotas backend
+- **Rotas dinâmicas** com parâmetros (frontend e backend)
 - **Middlewares** por pasta ou rota
 - **Hot Reload** nativo (WebSocket interno) em dev
 - **Layouts globais** e página 404 customizada
@@ -252,6 +257,53 @@ const route: BackendRouteConfig = {
         return HightJSResponse.json({ userId: params.id });
     }
 };
+export default route;
+```
+
+---
+
+## 🛜 WebSocket
+
+O HightJS possui suporte nativo a WebSockets nas rotas do backend.
+
+### Exemplo Prático
+
+`src/web/backend/routes/chat.ts`:
+
+```ts
+import {BackendRouteConfig, HightJSResponse} from 'hightjs';
+
+const route: BackendRouteConfig = {
+    pattern: '/api/chat',
+    GET: async () => {
+        return HightJSResponse.json({ message: 'Chat HTTP endpoint' });
+    },
+    WS: (ctx) => {
+        console.log('Nova conexão WebSocket no chat');
+
+        ctx.send({
+            type: 'welcome',
+            message: 'Bem-vindo ao chat!'
+        });
+
+        ctx.ws.on('message', (data) => {
+            const message = JSON.parse(data.toString());
+            console.log(message)
+            // Broadcast para todos exceto o remetente
+            ctx.broadcast({
+                type: 'message',
+                user: message.user,
+                text: message.text,
+                timestamp: new Date().toISOString()
+            });
+        });
+
+        ctx.ws.on('close', () => {
+            console.log('Cliente desconectado');
+        });
+    }
+};
+
 export default route;
 ```
 

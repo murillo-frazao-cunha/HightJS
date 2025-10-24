@@ -16,7 +16,7 @@ function encodeInitialData(data) {
 }
 function createDecodeScript() {
     return `
-    const process = { env: { NODE_ENV: '${process.env.NODE_ENV || 'development'}' } };
+    
     window.__HWEB_DECODE__ = function(encoded) { const base64 = encoded.replace('hweb_', '').replace('_config', ''); const jsonStr = atob(base64); return JSON.parse(jsonStr); };
     `;
 }

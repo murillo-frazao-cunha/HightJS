@@ -48,7 +48,11 @@ export interface AuthConfig {
     };
     callbacks?: {
         signIn?: (user: User, account: any, profile: any) => boolean | Promise<boolean>;
-        session?: (session: Session, user: User) => Session | Promise<Session>;
+        session?: ({ session, user, provider }: {
+            session: Session;
+            user: User;
+            provider: string;
+        }) => Session | Promise<Session>;
         jwt?: (token: any, user: User, account: any, profile: any) => any | Promise<any>;
     };
     session?: {
@@ -58,12 +62,7 @@ export interface AuthConfig {
     };
     secret?: string;
     debug?: boolean;
-}
-export interface AuthProvider {
-    id: string;
-    name: string;
-    type: 'credentials';
-    authorize?: (credentials: Record<string, string>) => Promise<User | null> | User | null;
+    secureCookies?: boolean;
 }
 export interface CredentialsConfig {
     id?: string;

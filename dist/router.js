@@ -13,9 +13,16 @@ exports.loadBackendRoutes = loadBackendRoutes;
 exports.findMatchingBackendRoute = findMatchingBackendRoute;
 exports.loadNotFound = loadNotFound;
 exports.getNotFound = getNotFound;
+exports.processWebSocketRoutes = processWebSocketRoutes;
+exports.findMatchingWebSocketRoute = findMatchingWebSocketRoute;
+exports.setupWebSocketUpgrade = setupWebSocketUpgrade;
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
+const ws_1 = require("ws");
+const url_1 = require("url");
 const console_1 = __importDefault(require("./api/console"));
+const factory_1 = require("./adapters/factory");
+const http_1 = require("./api/http");
 // --- Roteamento do Frontend ---
 // Guarda todas as rotas de PÁGINA (React) encontradas
 // A rota agora também armazena o caminho do arquivo para ser usado como um ID único no cliente
@@ -183,8 +190,18 @@ function findMatchingRoute(pathname) {
     for (const route of allRoutes) {
         if (!route.pattern)
             continue;
-        // Converte o padrão da rota (ex: /users/[id]) em uma RegExp
-        const regexPattern = route.pattern.replace(/\[(\w+)\]/g, '(?<$1>[^/]+)');
+        const regexPattern = route.pattern
+            // [[...param]] → opcional catch-all
+            .replace(/\[\[\.\.\.(\w+)\]\]/g, '(?<$1>.+)?')
+            // [...param] → obrigatório catch-all
+            .replace(/\[\.\.\.(\w+)\]/g, '(?<$1>.+)')
+            // /[[param]] → opcional com barra também opcional
+            .replace(/\/\[\[(\w+)\]\]/g, '(?:/(?<$1>[^/]+))?')
+            // [[param]] → segmento opcional (sem barra anterior)
+            .replace(/\[\[(\w+)\]\]/g, '(?<$1>[^/]+)?')
+            // [param] → segmento obrigatório
+            .replace(/\[(\w+)\]/g, '(?<$1>[^/]+)');
+        // permite / opcional no final
         const regex = new RegExp(`^${regexPattern}/?$`);
         const match = pathname.match(regex);
         if (match) {
@@ -364,4 +381,187 @@ function loadNotFound(webDir) {
  */
 function getNotFound() {
     return notFoundComponent;
+}
+// --- WebSocket Functions ---
+// Guarda todas as rotas WebSocket encontradas
+let allWebSocketRoutes = [];
+// Conexões WebSocket ativas
+let wsConnections = new Set();
+/**
+ * Processa e registra rotas WebSocket encontradas nas rotas backend
+ */
+function processWebSocketRoutes() {
+    allWebSocketRoutes = [];
+    for (const route of allBackendRoutes) {
+        if (route.WS) {
+            const wsRoute = {
+                pattern: route.pattern,
+                handler: route.WS,
+                middleware: route.middleware
+            };
+            allWebSocketRoutes.push(wsRoute);
+            console_1.default.info(`WebSocket route registered: ${route.pattern}`);
+        }
+    }
+}
+/**
+ * Encontra a rota WebSocket correspondente para uma URL
+ */
+function findMatchingWebSocketRoute(pathname) {
+    for (const route of allWebSocketRoutes) {
+        if (!route.pattern)
+            continue;
+        const regexPattern = route.pattern
+            .replace(/\[\[\.\.\.(\w+)\]\]/g, '(?<$1>.+)?')
+            .replace(/\[\.\.\.(\w+)\]/g, '(?<$1>.+)')
+            .replace(/\[\[(\w+)\]\]/g, '(?<$1>[^/]+)?')
+            .replace(/\[(\w+)\]/g, '(?<$1>[^/]+)');
+        const regex = new RegExp(`^${regexPattern}/?$`);
+        const match = pathname.match(regex);
+        if (match) {
+            return {
+                route,
+                params: match.groups || {}
+            };
+        }
+    }
+    return null;
+}
+/**
+ * Trata uma nova conexão WebSocket
+ */
+function handleWebSocketConnection(ws, req, hwebReq) {
+    if (!req.url)
+        return;
+    const url = new url_1.URL(req.url, `http://${req.headers.host}`);
+    const pathname = url.pathname;
+    const matchedRoute = findMatchingWebSocketRoute(pathname);
+    if (!matchedRoute) {
+        ws.close(1000, 'Rota não encontrada');
+        return;
+    }
+    const params = extractWebSocketParams(pathname, matchedRoute.route.pattern);
+    const query = Object.fromEntries(url.searchParams.entries());
+    const context = {
+        hightReq: hwebReq,
+        ws,
+        req,
+        url,
+        params,
+        query,
+        send: (data) => {
+            if (ws.readyState === ws_1.WebSocket.OPEN) {
+                const message = typeof data === 'string' ? data : JSON.stringify(data);
+                ws.send(message);
+            }
+        },
+        close: (code, reason) => {
+            ws.close(code || 1000, reason);
+        },
+        broadcast: (data, exclude) => {
+            const message = typeof data === 'string' ? data : JSON.stringify(data);
+            const excludeSet = new Set(exclude || []);
+            wsConnections.forEach(connection => {
+                if (connection.readyState === ws_1.WebSocket.OPEN && !excludeSet.has(connection)) {
+                    connection.send(message);
+                }
+            });
+        }
+    };
+    try {
+        matchedRoute.route.handler(context);
+    }
+    catch (error) {
+        console.error('Erro no handler WebSocket:', error);
+        ws.close(1011, 'Erro interno do servidor');
+    }
+}
+/**
+ * Extrai parâmetros da URL para WebSocket
+ */
+function extractWebSocketParams(pathname, pattern) {
+    const params = {};
+    const regexPattern = pattern
+        .replace(/\[\[\.\.\.(\w+)\]\]/g, '(?<$1>.+)?')
+        .replace(/\[\.\.\.(\w+)\]/g, '(?<$1>.+)')
+        .replace(/\[\[(\w+)\]\]/g, '(?<$1>[^/]+)?')
+        .replace(/\[(\w+)\]/g, '(?<$1>[^/]+)');
+    const regex = new RegExp(`^${regexPattern}/?$`);
+    const match = pathname.match(regex);
+    if (match && match.groups) {
+        Object.assign(params, match.groups);
+    }
+    return params;
+}
+/**
+ * Configura WebSocket upgrade no servidor HTTP existente
+ * @param server Servidor HTTP (Express, Fastify ou Native)
+ * @param hotReloadManager Instância do gerenciador de hot-reload para coordenação
+ */
+function setupWebSocketUpgrade(server, hotReloadManager) {
+    // NÃO remove listeners existentes para preservar hot-reload
+    // Em vez disso, coordena com o sistema existente
+    // Verifica se já existe um listener de upgrade
+    const existingListeners = server.listeners('upgrade');
+    // Se não há listeners, ou se o hot-reload ainda não foi configurado, adiciona o nosso
+    if (existingListeners.length === 0) {
+        server.on('upgrade', (request, socket, head) => {
+            handleWebSocketUpgrade(request, socket, head, hotReloadManager);
+        });
+    }
+    else {
+        // Se já existe um listener (provavelmente do hot-reload),
+        // vamos interceptar e coordenar
+        console.log('🔧 Coordenando WebSocket upgrade com sistema existente');
+    }
+}
+function handleWebSocketUpgrade(request, socket, head, hotReloadManager) {
+    const adapter = factory_1.FrameworkAdapterFactory.getCurrentAdapter();
+    if (!adapter) {
+        console.error('❌ Framework adapter não detectado. Não é possível processar upgrade WebSocket.');
+        socket.destroy();
+        return;
+    }
+    const genericReq = adapter.parseRequest(request);
+    const hwebReq = new http_1.HightJSRequest(genericReq);
+    const { pathname } = new url_1.URL(request.url, `http://${request.headers.host}`);
+    // Prioridade 1: Hot reload (sistema interno)
+    if (pathname === '/hweb-hotreload/') {
+        if (hotReloadManager) {
+            hotReloadManager.handleUpgrade(request, socket, head);
+        }
+        else {
+            console.warn('⚠️ Hot-reload manager não disponível para:', pathname);
+            socket.destroy();
+        }
+        return;
+    }
+    // Prioridade 2: Rotas WebSocket do usuário
+    const matchedRoute = findMatchingWebSocketRoute(pathname);
+    if (matchedRoute) {
+        // Faz upgrade para WebSocket usando noServer
+        const wss = new ws_1.WebSocketServer({
+            noServer: true,
+            perMessageDeflate: false, // Melhor performance
+            maxPayload: 1024 * 1024 // Limite de 1MB
+        });
+        wss.handleUpgrade(request, socket, head, (ws) => {
+            wsConnections.add(ws);
+            console.log(`✅ WebSocket conectado em ${pathname}`);
+            ws.on('close', () => {
+                wsConnections.delete(ws);
+                console.log(`❌ WebSocket desconectado de ${pathname}`);
+            });
+            ws.on('error', (error) => {
+                console.error(`💥 Erro WebSocket em ${pathname}:`, error);
+                wsConnections.delete(ws);
+            });
+            // Processa a conexão
+            handleWebSocketConnection(ws, request, hwebReq);
+        });
+        return;
+    }
+    // Nenhuma rota encontrada - rejeita conexão
+    console.log(`🚫 Nenhuma rota WebSocket encontrada para: ${pathname}`);
+    socket.destroy();
 }
