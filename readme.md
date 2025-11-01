@@ -1,1 +1,1 @@
-E:/hightjs-framework/packages/hightjs/README.md
+packages/hightjs/README.md
