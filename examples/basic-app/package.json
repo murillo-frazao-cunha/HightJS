@@ -16,11 +16,12 @@
     "dev": "hight dev --port 80"
   },
   "dependencies": {
+    "@hightjs/auth": "workspace:*",
     "@tailwindcss/postcss": "^4.1.16",
     "autoprefixer": "^10.4.21",
     "framer-motion": "^12.23.24",
     "hightjs": "workspace:*",
-    "@hightjs/auth": "workspace:*",
+    "lucide-react": "^0.552.0",
     "postcss": "^8.5.6",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",

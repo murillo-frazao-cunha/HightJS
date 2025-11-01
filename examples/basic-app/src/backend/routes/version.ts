@@ -8,6 +8,7 @@ const route: BackendRouteConfig = {
             version: "1.0.0",
             name: "HightJS Example"
         })
-    }
+    },
+    middleware: []
 }
 export default route;

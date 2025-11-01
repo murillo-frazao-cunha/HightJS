@@ -16,6 +16,8 @@
     "clean": "pnpm -r exec rimraf dist",
     "example:dev": "pnpm --filter basic-app run dev",
     "example:start": "pnpm --filter basic-app run start",
+    "docs:dev": "pnpm --filter hightjs-docs run dev",
+    "docs:build": "pnpm --filter hightjs-docs run build",
     "version:major": "pnpm -r --workspace-concurrency=1 exec pnpm version major",
     "version:minor": "pnpm -r --workspace-concurrency=1 exec pnpm version minor",
     "version:patch": "pnpm -r --workspace-concurrency=1 exec pnpm version patch",

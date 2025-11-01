@@ -37,6 +37,7 @@ Caso tenha alguma dúvida, entre em contato por uma das redes abaixo:
 - **Roteamento automático** de páginas [`src/web/routes`] e APIs [`src/backend/routes`]
 - **React 19** com client-side hydration
 - **TypeScript** first (totalmente tipado)
+- **Asset Imports** - Importe arquivos .md, .png, .jpg, .svg, .json, .txt, fontes, áudio e vídeo diretamente
 - **WebSockets** nativo nas rotas backend
 - **Rotas dinâmicas** com parâmetros (frontend e backend)
 - **Middlewares** por pasta ou rota
@@ -120,6 +121,101 @@ npx hight dev
 ```
 
 Acesse: [http://localhost:3000](http://localhost:3000)
+
+---
+
+## 📦 Importação de Assets
+
+HightJS suporta importação nativa de diversos tipos de arquivos, sem necessidade de configuração adicional!
+
+### Tipos de arquivo suportados:
+
+#### 🖼️ Imagens
+```tsx
+import logo from './logo.png';
+import photo from './photo.jpg';
+import icon from './icon.webp';
+
+<img src={logo} alt="Logo" />
+```
+
+Suporte para: `.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`, `.avif`, `.ico`, `.bmp`, `.tiff`
+
+#### 📄 Markdown
+```tsx
+import readme from './README.md';
+
+<pre>{readme}</pre>
+```
+
+#### 🎨 SVG (com duas formas de uso)
+```tsx
+import icon, { svgContent } from './icon.svg';
+
+// Como data URL
+<img src={icon} alt="Icon" />
+
+// Como HTML direto
+<div dangerouslySetInnerHTML={{ __html: svgContent }} />
+```
+
+#### 📋 JSON
+```tsx
+import config from './config.json';
+
+<p>Version: {config.version}</p>
+```
+
+#### 📝 Arquivos de texto
+```tsx
+import terms from './terms.txt';
+
+<pre>{terms}</pre>
+```
+
+#### 🎵 Áudio
+```tsx
+import music from './song.mp3';
+
+<audio src={music} controls />
+```
+
+Suporte para: `.mp3`, `.wav`, `.ogg`, `.m4a`, `.aac`, `.flac`
+
+#### 🎬 Vídeo
+```tsx
+import video from './demo.mp4';
+
+<video src={video} controls />
+```
+
+Suporte para: `.mp4`, `.webm`, `.ogv`
+
+#### 🔤 Fontes
+```tsx
+import customFont from './custom-font.woff2';
+
+// Use em @font-face
+const style = document.createElement('style');
+style.textContent = `
+  @font-face {
+    font-family: 'CustomFont';
+    src: url(${customFont}) format('woff2');
+  }
+`;
+document.head.appendChild(style);
+```
+
+Suporte para: `.woff`, `.woff2`, `.ttf`, `.otf`, `.eot`
+
+### ✨ Benefícios
+
+- ✅ **Type Safety**: Suporte completo a TypeScript com auto-complete
+- ✅ **Zero Config**: Funciona out-of-the-box
+- ✅ **Otimizado**: Assets são automaticamente bundlados e otimizados
+- ✅ **Base64 Encoding**: Arquivos são inline como data URLs, reduzindo requisições HTTP
+
+---
 
 ## 🪪 Licença
 

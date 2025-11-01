@@ -21,6 +21,10 @@
 // Registra o ts-node para que o Node.js entenda TypeScript/TSX
 require('ts-node').register();
 
+// Registra loaders customizados para arquivos markdown, imagens, etc.
+const { registerLoaders } = require('../loaders');
+registerLoaders();
+
 const { program } = require('commander');
 
 
@@ -106,14 +110,48 @@ program
         initializeApp(options, false); // Chama a função com dev: false
     });
 
-// --- Comando EXPORT ---
+/**
+ * Função corrigida para copiar diretórios recursivamente.
+ * Ela agora verifica se um item é um arquivo ou um diretório.
+ */
+function copyDirRecursive(src, dest) {
+    try {
+        // Garante que o diretório de destino exista
+        fs.mkdirSync(dest, { recursive: true });
+
+        // Usamos { withFileTypes: true } para evitar uma chamada extra de fs.statSync
+        const entries = fs.readdirSync(src, { withFileTypes: true });
+
+        for (let entry of entries) {
+            const srcPath = path.join(src, entry.name);
+            const destPath = path.join(dest, entry.name);
+
+            if (entry.isDirectory()) {
+                // Se for um diretório, chama a si mesma (recursão)
+                copyDirRecursive(srcPath, destPath);
+            } else {
+                // Se for um arquivo, apenas copia
+                fs.copyFileSync(srcPath, destPath);
+            }
+        }
+    } catch (error) {
+        console.error(`❌ Erro ao copiar ${src} para ${dest}:`, error);
+        // Lança o erro para parar o processo de exportação se a cópia falhar
+        throw error;
+    }
+}
+
+
+// --- INÍCIO DO SEU CÓDIGO (AGORA CORRIGIDO) ---
+
 program
     .command('export')
     .description('Exports the application as static HTML to the "exported" folder.')
     .option('-o, --output <path>', 'Specifies the output directory', 'exported')
     .action(async (options) => {
         const projectDir = process.cwd();
-        const exportDir = path.join(projectDir, options.output);
+        // Usar path.resolve é mais seguro para garantir um caminho absoluto
+        const exportDir = path.resolve(projectDir, options.output);
 
         console.log('🚀 Starting export...\n');
 
@@ -128,51 +166,43 @@ program
 
             // 2. Inicializa e prepara o build
             console.log('🔨 Building application...');
+            // ATENÇÃO: Ajuste o caminho deste 'require' conforme a estrutura do seu projeto!
             const teste = require("../helpers");
             const app = teste.default({ dev: false, port: 3000, hostname: '0.0.0.0', framework: 'native' });
             await app.prepare();
             console.log('✅ Build complete\n');
 
-            // 3. Copia a pasta .hight para exported
+            // 3. Copia a pasta .hight para exported (*** CORRIGIDO ***)
             const distDir = path.join(projectDir, '.hight');
             if (fs.existsSync(distDir)) {
                 console.log('📦 Copying JavaScript files...');
                 const exportDistDir = path.join(exportDir, '.hight');
-                fs.mkdirSync(exportDistDir, { recursive: true });
 
-                const files = fs.readdirSync(distDir);
-                files.forEach(file => {
-                    fs.copyFileSync(
-                        path.join(distDir, file),
-                        path.join(exportDistDir, file)
-                    );
-                });
+                // --- Lógica de cópia substituída ---
+                // A função copyDirRecursive agora lida com tudo (arquivos e subpastas)
+                copyDirRecursive(distDir, exportDistDir);
+                // --- Fim da substituição ---
+
                 console.log('✅ JavaScript files copied\n');
             }
 
-            // 4. Copia a pasta public se existir
+            // 4. Copia a pasta public se existir (*** CORRIGIDO ***)
             const publicDir = path.join(projectDir, 'public');
             if (fs.existsSync(publicDir)) {
                 console.log('📁 Copying public files...');
                 const exportPublicDir = path.join(exportDir, 'public');
 
-                function copyRecursive(src, dest) {
-                    if (fs.statSync(src).isDirectory()) {
-                        fs.mkdirSync(dest, { recursive: true });
-                        fs.readdirSync(src).forEach(file => {
-                            copyRecursive(path.join(src, file), path.join(dest, file));
-                        });
-                    } else {
-                        fs.copyFileSync(src, dest);
-                    }
-                }
+                // --- Lógica de cópia substituída ---
+                // Reutilizamos a mesma função corrigida
+                copyDirRecursive(publicDir, exportPublicDir);
+                // --- Fim da substituição ---
 
-                copyRecursive(publicDir, exportPublicDir);
                 console.log('✅ Public files copied\n');
             }
 
             // 5. Gera o index.html
             console.log('📝 Generating index.html...');
+            // ATENÇÃO: Ajuste os caminhos destes 'requires' conforme a estrutura do seu projeto!
             const { render } = require('../renderer');
             const { loadRoutes, loadLayout, loadNotFound } = require('../router');
 
@@ -202,9 +232,9 @@ program
                     params: {},
                     allRoutes: routes
                 });
-
+                const scriptReplaced = html.replace('/_hight/', './.hight/');
                 const indexPath = path.join(exportDir, 'index.html');
-                fs.writeFileSync(indexPath, html, 'utf8');
+                fs.writeFileSync(indexPath, scriptReplaced, 'utf8');
                 console.log('✅ index.html generated\n');
             }
 
@@ -212,11 +242,11 @@ program
             console.log(`📂 Files exported to: ${exportDir}\n`);
 
         } catch (error) {
-            console.error('❌ Error during export:', error.message);
+            // Logar o erro completo (com stack trace) é mais útil
+            console.error('❌ Error during export:', error);
             process.exit(1);
         }
     });
-
 
 // Faz o "parse" dos argumentos passados na linha de comando
 program.parse(process.argv);

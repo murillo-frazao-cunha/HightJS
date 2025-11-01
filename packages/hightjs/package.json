@@ -16,7 +16,8 @@
   ],
   "files": [
     "dist",
-    "README.md"
+    "README.md",
+    "dist/global/global.d.ts"
   ],
   "bin": {
     "hight": "./dist/bin/hightjs.js"
@@ -39,6 +40,9 @@
       "types": "./dist/helpers.d.ts",
       "import": "./dist/helpers.js",
       "require": "./dist/helpers.js"
+    },
+    "./global": {
+      "types": "./dist/global/global.d.ts"
     },
     "./eslint": {
       "types": "./dist/eslint/index.d.ts",

@@ -53,6 +53,59 @@ const hightConfig: HightConfigFunction = (phase, { defaultConfig }) => {
          * Default: false
          */
         accessLogging: true,
+
+        /**
+         * CORS (Cross-Origin Resource Sharing) Configuration
+         * Enable this to allow requests from different origins
+         */
+        cors: {
+            /**
+             * Enable CORS
+             * Default: false
+             */
+            enabled: true,
+
+            /**
+             * Allowed origins
+             * Options:
+             * - '*' - Allow all origins (not recommended for production)
+             * - 'https://example.com' - Allow specific origin
+             * - ['https://example.com', 'https://app.example.com'] - Allow multiple origins
+             * - (origin) => origin.endsWith('.example.com') - Dynamic validation
+             */
+            origin: 'http://localhost:63342', // For development. In production, specify your domain(s)
+
+            /**
+             * Allowed HTTP methods
+             * Default: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS']
+             */
+            methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+
+            /**
+             * Allowed request headers
+             * Default: ['Content-Type', 'Authorization']
+             */
+            allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+
+            /**
+             * Headers exposed to the client
+             * Default: []
+             */
+            exposedHeaders: ['X-Total-Count', 'X-Page-Count'],
+
+            /**
+             * Allow credentials (cookies, authorization headers)
+             * Default: false
+             * Note: Cannot be used with origin: '*'
+             */
+            credentials: true,
+
+            /**
+             * Preflight cache duration in seconds
+             * Default: 86400 (24 hours)
+             */
+            maxAge: 86400,
+        },
     };
 
     // You can customize settings based on the phase
@@ -60,12 +113,24 @@ const hightConfig: HightConfigFunction = (phase, { defaultConfig }) => {
         // In development, you might want longer timeouts for debugging
         config.requestTimeout = 60000;
         config.individualRequestTimeout = 60000;
+
+        // In development, allow all origins
+        if (config.cors) {
+            config.cors.origin = 'http://localhost:63342';
+            config.cors.credentials = true;
+        }
     }
 
     if (phase === 'production') {
         // In production, you might want stricter limits
         config.maxHeadersCount = 50;
         config.maxUrlLength = 1024;
+
+        // In production, specify your actual domain(s)
+        if (config.cors) {
+            config.cors.origin = ['http://localhost:63342', 'https://app.yourdomain.com'];
+            config.cors.credentials = true; // Enable if you need to send cookies
+        }
     }
 
     return config;

@@ -231,6 +231,166 @@ if (typeof window !== 'undefined' && window.__HWEB_HMR__) {
 };
 
 /**
+ * Plugin para suportar importação de arquivos Markdown (.md)
+ */
+const markdownPlugin = {
+    name: 'markdown-plugin',
+    setup(build) {
+        build.onLoad({ filter: /\.md$/ }, async (args) => {
+            const fs = require('fs');
+            const content = await fs.promises.readFile(args.path, 'utf8');
+
+            return {
+                contents: `export default ${JSON.stringify(content)};`,
+                loader: 'js'
+            };
+        });
+    }
+};
+
+/**
+ * Plugin para suportar importação de arquivos de imagem e outros assets
+ */
+const assetsPlugin = {
+    name: 'assets-plugin',
+    setup(build) {
+        // Suporte para imagens (PNG, JPG, JPEG, GIF, SVG, WEBP, etc)
+        build.onLoad({ filter: /\.(png|jpe?g|gif|webp|avif|ico|bmp|tiff?)$/i }, async (args) => {
+            const fs = require('fs');
+            const buffer = await fs.promises.readFile(args.path);
+            const base64 = buffer.toString('base64');
+            const ext = path.extname(args.path).slice(1).toLowerCase();
+
+            // Mapeamento de extensões para MIME types
+            const mimeTypes = {
+                'png': 'image/png',
+                'jpg': 'image/jpeg',
+                'jpeg': 'image/jpeg',
+                'gif': 'image/gif',
+                'webp': 'image/webp',
+                'avif': 'image/avif',
+                'ico': 'image/x-icon',
+                'bmp': 'image/bmp',
+                'tif': 'image/tiff',
+                'tiff': 'image/tiff'
+            };
+
+            const mimeType = mimeTypes[ext] || 'application/octet-stream';
+
+            return {
+                contents: `export default "data:${mimeType};base64,${base64}";`,
+                loader: 'js'
+            };
+        });
+
+        // Suporte especial para SVG (pode ser usado como string ou data URL)
+        build.onLoad({ filter: /\.svg$/i }, async (args) => {
+            const fs = require('fs');
+            const content = await fs.promises.readFile(args.path, 'utf8');
+            const base64 = Buffer.from(content).toString('base64');
+
+            return {
+                contents: `
+                    export default "data:image/svg+xml;base64,${base64}";
+                    export const svgContent = ${JSON.stringify(content)};
+                `,
+                loader: 'js'
+            };
+        });
+
+        // Suporte para arquivos JSON
+        build.onLoad({ filter: /\.json$/i }, async (args) => {
+            const fs = require('fs');
+            const content = await fs.promises.readFile(args.path, 'utf8');
+
+            return {
+                contents: `export default ${content};`,
+                loader: 'js'
+            };
+        });
+
+        // Suporte para arquivos de texto (.txt)
+        build.onLoad({ filter: /\.txt$/i }, async (args) => {
+            const fs = require('fs');
+            const content = await fs.promises.readFile(args.path, 'utf8');
+
+            return {
+                contents: `export default ${JSON.stringify(content)};`,
+                loader: 'js'
+            };
+        });
+
+        // Suporte para arquivos de fonte (WOFF, WOFF2, TTF, OTF, EOT)
+        build.onLoad({ filter: /\.(woff2?|ttf|otf|eot)$/i }, async (args) => {
+            const fs = require('fs');
+            const buffer = await fs.promises.readFile(args.path);
+            const base64 = buffer.toString('base64');
+            const ext = path.extname(args.path).slice(1).toLowerCase();
+
+            const mimeTypes = {
+                'woff': 'font/woff',
+                'woff2': 'font/woff2',
+                'ttf': 'font/ttf',
+                'otf': 'font/otf',
+                'eot': 'application/vnd.ms-fontobject'
+            };
+
+            const mimeType = mimeTypes[ext] || 'application/octet-stream';
+
+            return {
+                contents: `export default "data:${mimeType};base64,${base64}";`,
+                loader: 'js'
+            };
+        });
+
+        // Suporte para arquivos de áudio (MP3, WAV, OGG, etc)
+        build.onLoad({ filter: /\.(mp3|wav|ogg|m4a|aac|flac)$/i }, async (args) => {
+            const fs = require('fs');
+            const buffer = await fs.promises.readFile(args.path);
+            const base64 = buffer.toString('base64');
+            const ext = path.extname(args.path).slice(1).toLowerCase();
+
+            const mimeTypes = {
+                'mp3': 'audio/mpeg',
+                'wav': 'audio/wav',
+                'ogg': 'audio/ogg',
+                'm4a': 'audio/mp4',
+                'aac': 'audio/aac',
+                'flac': 'audio/flac'
+            };
+
+            const mimeType = mimeTypes[ext] || 'audio/mpeg';
+
+            return {
+                contents: `export default "data:${mimeType};base64,${base64}";`,
+                loader: 'js'
+            };
+        });
+
+        // Suporte para arquivos de vídeo (MP4, WEBM, OGV)
+        build.onLoad({ filter: /\.(mp4|webm|ogv)$/i }, async (args) => {
+            const fs = require('fs');
+            const buffer = await fs.promises.readFile(args.path);
+            const base64 = buffer.toString('base64');
+            const ext = path.extname(args.path).slice(1).toLowerCase();
+
+            const mimeTypes = {
+                'mp4': 'video/mp4',
+                'webm': 'video/webm',
+                'ogv': 'video/ogg'
+            };
+
+            const mimeType = mimeTypes[ext] || 'video/mp4';
+
+            return {
+                contents: `export default "data:${mimeType};base64,${base64}";`,
+                loader: 'js'
+            };
+        });
+    }
+};
+
+/**
  * Builds with code splitting into multiple chunks based on module types.
  * @param {string} entryPoint - The path to the entry file.
  * @param {string} outdir - The directory for output files.
@@ -251,7 +411,7 @@ async function buildWithChunks(entryPoint, outdir, isProduction = false) {
       outdir: outdir,
       loader: { '.js': 'jsx', '.ts': 'tsx' },
       external: nodeBuiltIns,
-      plugins: [postcssPlugin, npmDependenciesPlugin, reactResolvePlugin],
+      plugins: [postcssPlugin, npmDependenciesPlugin, reactResolvePlugin, markdownPlugin, assetsPlugin],
       format: 'esm', // ESM suporta melhor o code splitting
       jsx: 'automatic',
       define: {
@@ -313,7 +473,7 @@ async function watchWithChunks(entryPoint, outdir, hotReloadManager = null) {
             outdir: outdir,
             loader: { '.js': 'jsx', '.ts': 'tsx' },
             external: nodeBuiltIns,
-            plugins: [postcssPlugin, npmDependenciesPlugin, reactResolvePlugin, hmrPlugin, buildCompletePlugin],
+            plugins: [postcssPlugin, npmDependenciesPlugin, reactResolvePlugin, hmrPlugin, buildCompletePlugin, markdownPlugin, assetsPlugin],
             format: 'esm',
             jsx: 'automatic',
             define: {
@@ -359,7 +519,7 @@ async function build(entryPoint, outfile, isProduction = false) {
       outfile: outfile,
       loader: { '.js': 'jsx', '.ts': 'tsx' },
       external: nodeBuiltIns,
-      plugins: [postcssPlugin, npmDependenciesPlugin, reactResolvePlugin],
+      plugins: [postcssPlugin, npmDependenciesPlugin, reactResolvePlugin, markdownPlugin, assetsPlugin],
       format: 'iife',
       globalName: 'HwebApp',
       jsx: 'automatic',
@@ -422,7 +582,6 @@ async function watch(entryPoint, outfile, hotReloadManager = null) {
             outfile: outfile,
             loader: { '.js': 'jsx', '.ts': 'tsx' },
             external: nodeBuiltIns,
-            plugins: [postcssPlugin, npmDependenciesPlugin, reactResolvePlugin, buildCompletePlugin],
             format: 'iife',
             globalName: 'HwebApp',
             jsx: 'automatic',

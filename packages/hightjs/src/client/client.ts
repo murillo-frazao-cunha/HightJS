@@ -14,6 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 // Este arquivo exporta apenas código seguro para o cliente (navegador)
 export { Link } from '../components/Link';
 export { RouteConfig, Metadata } from "../types";

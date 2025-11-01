@@ -96,6 +96,57 @@ export interface HightConfig {
      * Padrão: false
      */
     accessLogging?: boolean;
+
+    /**
+     * Configurações de CORS (Cross-Origin Resource Sharing).
+     * Define quais origens podem acessar seus recursos.
+     */
+    cors?: {
+        /**
+         * Origens permitidas. Pode ser:
+         * - Uma string específica: 'https://exemplo.com'
+         * - Um array de strings: ['https://exemplo.com', 'https://outro.com']
+         * - Um wildcard: '*' (permite todas as origens - não recomendado em produção)
+         * - Uma função que retorna boolean: (origin) => origin.endsWith('.exemplo.com')
+         */
+        origin?: string | string[] | ((origin: string) => boolean);
+
+        /**
+         * Métodos HTTP permitidos.
+         * Padrão: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS']
+         */
+        methods?: string[];
+
+        /**
+         * Headers permitidos nas requisições.
+         * Padrão: ['Content-Type', 'Authorization']
+         */
+        allowedHeaders?: string[];
+
+        /**
+         * Headers que serão expostos ao cliente.
+         * Padrão: []
+         */
+        exposedHeaders?: string[];
+
+        /**
+         * Permite o envio de credenciais (cookies, headers de autenticação).
+         * Padrão: false
+         */
+        credentials?: boolean;
+
+        /**
+         * Tempo em segundos que o navegador deve cachear a resposta preflight.
+         * Padrão: 86400 (24 horas)
+         */
+        maxAge?: number;
+
+        /**
+         * Habilita ou desabilita completamente o CORS.
+         * Padrão: false
+         */
+        enabled?: boolean;
+    };
 }
 
 /**

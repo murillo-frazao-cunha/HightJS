@@ -28,6 +28,11 @@ import type {HightJSOptions, HightConfig, HightConfigFunction} from './types';
 import Console, {Colors} from "./api/console";
 import https, { Server as HttpsServer } from 'https'; // <-- ADICIONAR
 import fs from 'fs'; // <-- ADICIONAR
+
+// Registra loaders customizados para importar arquivos não-JS
+const { registerLoaders } = require('./loaders');
+registerLoaders();
+
 // --- Tipagem ---
 
 /**
@@ -168,9 +173,82 @@ async function loadHightConfig(projectDir: string, phase: string): Promise<Hight
 }
 
 /**
- * Middleware para parsing do body com proteções de segurança (versão melhorada).
- * Rejeita a promise em caso de erro de parsing ou estouro de limite.
+ * Aplica headers CORS na resposta baseado na configuração.
+ * @param req Requisição HTTP
+ * @param res Resposta HTTP
+ * @param corsConfig Configuração de CORS
+ * @returns true se a requisição foi finalizada (OPTIONS), false caso contrário
  */
+function applyCors(req: IncomingMessage, res: ServerResponse, corsConfig?: HightConfig['cors']): boolean {
+    if (!corsConfig || !corsConfig.enabled) {
+        return false;
+    }
+
+    const origin = req.headers.origin || req.headers.referer;
+
+    // Verifica se a origem é permitida
+    let allowOrigin = false;
+    if (corsConfig.origin === '*') {
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        allowOrigin = true;
+    } else if (typeof corsConfig.origin === 'string' && origin === corsConfig.origin) {
+        res.setHeader('Access-Control-Allow-Origin', corsConfig.origin);
+        allowOrigin = true;
+    } else if (Array.isArray(corsConfig.origin) && origin && corsConfig.origin.includes(origin)) {
+        res.setHeader('Access-Control-Allow-Origin', origin);
+        allowOrigin = true;
+    } else if (typeof corsConfig.origin === 'function' && origin) {
+        try {
+            if (corsConfig.origin(origin)) {
+                res.setHeader('Access-Control-Allow-Origin', origin);
+                allowOrigin = true;
+            }
+        } catch (error) {
+            Console.warn(`${Colors.FgYellow}[CORS]${Colors.Reset} Error validating origin: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
+    }
+
+    // Se a origem não for permitida e não for wildcard, não aplica outros headers
+    if (!allowOrigin && corsConfig.origin !== '*') {
+        return false;
+    }
+
+    // Credenciais (não pode ser usado com origin: '*')
+    if (corsConfig.credentials && corsConfig.origin !== '*') {
+        res.setHeader('Access-Control-Allow-Credentials', 'true');
+    }
+
+    // Métodos permitidos
+    const methods = corsConfig.methods || ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'];
+    res.setHeader('Access-Control-Allow-Methods', methods.join(', '));
+
+    // Headers permitidos
+    const allowedHeaders = corsConfig.allowedHeaders || ['Content-Type', 'Authorization'];
+    res.setHeader('Access-Control-Allow-Headers', allowedHeaders.join(', '));
+
+    // Headers expostos
+    if (corsConfig.exposedHeaders && corsConfig.exposedHeaders.length > 0) {
+        res.setHeader('Access-Control-Expose-Headers', corsConfig.exposedHeaders.join(', '));
+    }
+
+    // Max age para cache de preflight
+    const maxAge = corsConfig.maxAge !== undefined ? corsConfig.maxAge : 86400;
+    res.setHeader('Access-Control-Max-Age', maxAge.toString());
+
+    // Responde requisições OPTIONS (preflight)
+    if (req.method === 'OPTIONS') {
+        res.statusCode = 204; // No Content
+        res.end();
+        return true;
+    }
+
+    return false;
+}
+
+/**
+ * Middleware para parsing do body com proteções de segurança (versão melhorada).
+*/
+
 const parseBody = (req: IncomingMessage): Promise<object | string | null> => {
     // Constantes para limites de segurança
     const MAX_BODY_SIZE = 10 * 1024 * 1024; // 10MB limite total
@@ -269,6 +347,17 @@ async function initNativeServer(hwebApp: HWebApp, options: HightJSOptions, port:
         const requestStartTime = Date.now();
         const method = req.method || 'GET';
         const url = req.url || '/';
+
+        // Aplica CORS se configurado
+        const corsHandled = applyCors(req, res, hightConfig.cors);
+        if (corsHandled) {
+            // Requisição OPTIONS foi respondida pelo CORS
+            if (hightConfig.accessLogging) {
+                const duration = Date.now() - requestStartTime;
+                Console.logCustomLevel('OPTIONS', true, Colors.BgMagenta, `${url} ${Colors.FgGreen}204${Colors.Reset} ${Colors.FgGray}${duration}ms${Colors.Reset} ${Colors.FgCyan}[CORS]${Colors.Reset}`);
+            }
+            return;
+        }
 
         // Configurações de segurança básicas
         res.setHeader('X-Content-Type-Options', 'nosniff');
