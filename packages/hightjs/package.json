@@ -1,0 +1,78 @@
+{
+  "name": "hightjs",
+  "version": "0.4.0",
+  "description": "HightJS is a high-level framework for building web applications with ease and speed. It provides a robust set of tools and features to streamline development and enhance productivity.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "author": "itsmuzin",
+  "license": "Apache-2.0",
+  "packageManager": "pnpm@10.20.0",
+  "keywords": [
+    "hightjs",
+    "framework",
+    "web",
+    "typescript",
+    "react"
+  ],
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "bin": {
+    "hight": "./dist/bin/hightjs.js"
+  },
+  "scripts": {
+    "build": "tsc"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.js"
+    },
+    "./react": {
+      "types": "./dist/client/client.d.ts",
+      "import": "./dist/client/client.js",
+      "require": "./dist/client/client.js"
+    },
+    "./helpers": {
+      "types": "./dist/helpers.d.ts",
+      "import": "./dist/helpers.js",
+      "require": "./dist/helpers.js"
+    },
+    "./eslint": {
+      "types": "./dist/eslint/index.d.ts",
+      "import": "./dist/eslint/index.js",
+      "require": "./dist/eslint/index.js"
+    }
+  },
+  "peerDependencies": {
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "dependencies": {
+    "@fastify/cookie": "^11.0.2",
+    "@fastify/formbody": "^8.0.2",
+    "boxen": "^8.0.1",
+    "chokidar": "^3.5.3",
+    "commander": "^14.0.1",
+    "cookie-parser": "^1.4.7",
+    "esbuild": "^0.25.10",
+    "express": "^4.0.0",
+    "fastify": "^5.6.1",
+    "framer-motion": "^12.23.22",
+    "fs-extra": "^11.3.2",
+    "ws": "^8.18.1"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/fs-extra": "^11.0.4",
+    "@types/node": "^20.11.24",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@types/ws": "^8.18.1",
+    "ts-loader": "^9.5.4",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
+  }
+}

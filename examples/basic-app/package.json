@@ -1,0 +1,34 @@
+{
+  "name": "basic-app",
+  "version": "0.4.0",
+  "description": "Basic example application for HightJS framework",
+  "private": true,
+  "author": "itsmuzin",
+  "license": "Apache-2.0",
+  "packageManager": "pnpm@10.20.0",
+  "keywords": [
+    "hightjs",
+    "example",
+    "react"
+  ],
+  "scripts": {
+    "start": "hight start --port 80",
+    "dev": "hight dev --port 80"
+  },
+  "dependencies": {
+    "@tailwindcss/postcss": "^4.1.16",
+    "autoprefixer": "^10.4.21",
+    "framer-motion": "^12.23.24",
+    "hightjs": "workspace:*",
+    "@hightjs/auth": "workspace:*",
+    "postcss": "^8.5.6",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "tailwindcss": "^4.1.16",
+    "ts-node": "^10.9.2"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.2",
+    "typescript": "^5.9.3"
+  }
+}

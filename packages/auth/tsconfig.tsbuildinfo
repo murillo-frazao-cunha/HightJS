@@ -1,0 +1,1 @@
+{"root":["./src/client.ts","./src/components.tsx","./src/core.ts","./src/index.ts","./src/jwt.ts","./src/providers.ts","./src/react.tsx","./src/routes.ts","./src/types.ts","./src/providers/credentials.ts","./src/providers/discord.ts","./src/providers/google.ts","./src/providers/index.ts","./src/react/index.ts"],"version":"5.9.3"}

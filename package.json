@@ -1,0 +1,31 @@
+{
+  "name": "hightjs-framework",
+  "version": "0.4.0",
+  "description": "Monorepo for the HightJS framework",
+  "private": true,
+  "author": "itsmuzin",
+  "license": "Apache-2.0",
+  "packageManager": "pnpm@10.20.0",
+  "keywords": [
+    "hightjs",
+    "framework",
+    "monorepo"
+  ],
+  "scripts": {
+    "build": "pnpm run clean && tsc --build",
+    "clean": "pnpm -r exec rimraf dist",
+    "example:dev": "pnpm --filter basic-app run dev",
+    "example:start": "pnpm --filter basic-app run start",
+    "version:major": "pnpm -r --workspace-concurrency=1 exec pnpm version major",
+    "version:minor": "pnpm -r --workspace-concurrency=1 exec pnpm version minor",
+    "version:patch": "pnpm -r --workspace-concurrency=1 exec pnpm version patch",
+    "version:sync": "node -e \"const fs=require('fs');const v=require('./package.json').version;['packages/hightjs','packages/auth','examples/basic-app'].forEach(p=>{const pkg=JSON.parse(fs.readFileSync(p+'/package.json'));pkg.version=v;fs.writeFileSync(p+'/package.json',JSON.stringify(pkg,null,2)+'\\n')})\"",
+    "publish:sdk": "pnpm run clean && pnpm run build && pnpm publish --filter hightjs",
+    "publish:auth": "pnpm run clean && pnpm run build && pnpm publish --filter @hightjs/auth"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.24",
+    "rimraf": "^5.0.0",
+    "typescript": "^5.9.3"
+  }
+}
