@@ -6,7 +6,7 @@
   <h1>HightJS</h1>
 
 [![NPM](https://img.shields.io/npm/v/hightjs.svg?style=for-the-badge&labelColor=000000)](https://www.npmjs.com/package/hightjs)
-[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg?style=for-the-badge&labelColor=000000)](./LICENSE)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg?style=for-the-badge&labelColor=000000)](../../LICENSE)
 
 
 </div>
@@ -69,18 +69,20 @@ Crie um `tsconfig.json` na raiz do projeto:
 ```json
 {
   "compilerOptions": {
-    "target": "ES6",
-    "module": "CommonJS",
-    "jsx": "react",
+    "target": "ES2020",
+    "module": "NodeNext",
+    "jsx": "react-jsx",
     "strict": true,
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
+    "rootDir": "./src",
     "outDir": "./dist",
     "moduleResolution": "nodenext"
   },
-  "include": ["src/**/*"]
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
 }
 ```
 
@@ -96,7 +98,7 @@ src/
 Exemplo de página inicial em `src/web/routes/index.tsx`:
 
 ```tsx
-import { RouteConfig } from 'hightjs/client';
+import { RouteConfig } from 'hightjs/react';
 import React from 'react';
 
 function Home() {
@@ -123,7 +125,7 @@ Acesse: [http://localhost:3000](http://localhost:3000)
 
 Copyright 2025 itsmuzin
 
-Este projeto está licenciado sob a [Licença Apache 2.0](LICENSE).
+Este projeto está licenciado sob a [Licença Apache 2.0](../../LICENSE).
 
 ---
 
