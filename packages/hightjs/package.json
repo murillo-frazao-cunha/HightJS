@@ -1,6 +1,6 @@
 {
   "name": "hightjs",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "HightJS is a high-level framework for building web applications with ease and speed. It provides a robust set of tools and features to streamline development and enhance productivity.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -17,7 +17,8 @@
   "files": [
     "dist",
     "README.md",
-    "dist/global/global.d.ts"
+    "dist/global/global.d.ts",
+    "src"
   ],
   "bin": {
     "hight": "./dist/bin/hightjs.js"
