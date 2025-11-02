@@ -17,48 +17,7 @@
 import React, { ReactNode } from 'react';
 import { useAuth } from './react';
 import { router } from 'hightjs/react';
-interface ProtectedRouteProps {
-    children: ReactNode;
-    fallback?: ReactNode;
-    redirectTo?: string;
-    requireAuth?: boolean;
-}
 
-/**
- * Componente para proteger rotas que requerem autenticação
- */
-export function ProtectedRoute({
-    children,
-    fallback,
-    redirectTo = '/auth/signin',
-    requireAuth = true
-}: ProtectedRouteProps) {
-    const { isAuthenticated, isLoading } = useAuth();
-
-    // Ainda carregando
-    if (isLoading) {
-        return fallback || <div>Loading...</div>;
-    }
-
-    // Requer auth mas não está autenticado
-    if (requireAuth && !isAuthenticated) {
-        if (typeof window !== 'undefined' && redirectTo) {
-            window.location.href = redirectTo;
-            return null;
-        }
-        return fallback || <div>Unauthorized</div>;
-    }
-
-    // Não requer auth mas está autenticado (ex: página de login)
-    if (!requireAuth && isAuthenticated && redirectTo) {
-        if (typeof window !== 'undefined') {
-            window.location.href = redirectTo;
-            return null;
-        }
-    }
-
-    return <>{children}</>;
-}
 
 interface GuardProps {
     children: ReactNode;

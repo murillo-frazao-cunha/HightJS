@@ -31,14 +31,53 @@ interface AppProps {
 function App({ componentMap, routes, initialComponentPath, initialParams, layoutComponent }: AppProps) {
     // Estado que guarda o componente a ser renderizado atualmente
     const [hmrTimestamp, setHmrTimestamp] = useState(Date.now());
-    const [CurrentPageComponent, setCurrentPageComponent] = useState(() => {
-        // Se for a rota especial __404__, não busca no componentMap
-        if (initialComponentPath === '__404__') {
-            return null;
+
+    // Helper para encontrar rota baseado no path
+    const findRouteForPath = useCallback((path: string) => {
+        for (const route of routes) {
+            const regexPattern = route.pattern
+                // [[...param]] → opcional catch-all
+                .replace(/\[\[\.\.\.(\w+)\]\]/g, '(?<$1>.+)?')
+                // [...param] → obrigatório catch-all
+                .replace(/\[\.\.\.(\w+)\]/g, '(?<$1>.+)')
+                // /[[param]] → opcional com barra também opcional
+                .replace(/\/\[\[(\w+)\]\]/g, '(?:/(?<$1>[^/]+))?')
+                // [[param]] → segmento opcional (sem barra anterior)
+                .replace(/\[\[(\w+)\]\]/g, '(?<$1>[^/]+)?')
+                // [param] → segmento obrigatório
+                .replace(/\[(\w+)\]/g, '(?<$1>[^/]+)');
+            const regex = new RegExp(`^${regexPattern}/?$`);
+            const match = path.match(regex);
+            if (match) {
+                return {
+                    componentPath: route.componentPath,
+                    params: match.groups || {}
+                };
+            }
         }
-        return componentMap[initialComponentPath];
+        return null;
+    }, [routes]);
+
+    // Inicializa o componente e params baseado na URL ATUAL (não no initialComponentPath)
+    const [CurrentPageComponent, setCurrentPageComponent] = useState(() => {
+        // Pega a rota atual da URL
+        const currentPath = window.location.pathname;
+        const match = findRouteForPath(currentPath);
+
+        if (match) {
+            return componentMap[match.componentPath];
+        }
+
+        // Se não encontrou rota, retorna null para mostrar 404
+        return null;
     });
-    const [params, setParams] = useState(initialParams);
+
+    const [params, setParams] = useState(() => {
+        // Pega os params da URL atual
+        const currentPath = window.location.pathname;
+        const match = findRouteForPath(currentPath);
+        return match ? match.params : {};
+    });
 
     // HMR: Escuta eventos de hot reload
     useEffect(() => {
@@ -106,30 +145,6 @@ function App({ componentMap, routes, initialComponentPath, initialParams, layout
         };
     }, []);
 
-    const findRouteForPath = useCallback((path: string) => {
-        for (const route of routes) {
-            const regexPattern = route.pattern
-                // [[...param]] → opcional catch-all
-                .replace(/\[\[\.\.\.(\w+)\]\]/g, '(?<$1>.+)?')
-                // [...param] → obrigatório catch-all
-                .replace(/\[\.\.\.(\w+)\]/g, '(?<$1>.+)')
-                // /[[param]] → opcional com barra também opcional
-                .replace(/\/\[\[(\w+)\]\]/g, '(?:/(?<$1>[^/]+))?')
-                // [[param]] → segmento opcional (sem barra anterior)
-                .replace(/\[\[(\w+)\]\]/g, '(?<$1>[^/]+)?')
-                // [param] → segmento obrigatório
-                .replace(/\[(\w+)\]/g, '(?<$1>[^/]+)');
-            const regex = new RegExp(`^${regexPattern}/?$`);
-            const match = path.match(regex);
-            if (match) {
-                return {
-                    componentPath: route.componentPath,
-                    params: match.groups || {}
-                };
-            }
-        }
-        return null;
-    }, [routes]);
 
     const updateRoute = useCallback(() => {
         const currentPath = router.pathname;
