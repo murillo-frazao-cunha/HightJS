@@ -59,7 +59,7 @@ export default function Layout({ children }: LayoutProps) {
     };
 
     return (
-        <SessionProvider basePath="http://localhost/api/auth">
+        <SessionProvider>
             <AnimatePresence
                 mode="wait"
                 onExitComplete={() => window.scrollTo(0, 0)}

@@ -51,7 +51,7 @@ function clearRequireCache(filePath: string) {
         delete require.cache[resolvedPath];
 
         // Também limpa arquivos temporários relacionados (apenas se existir no cache)
-        const tempFile = filePath.replace(/\.(tsx|ts)$/, '.temp.$1');
+        const tempFile = filePath.replace(/\.(tsx|ts|jsx|js)$/, '.temp.$1');
         const tempResolvedPath = require.cache[require.resolve(tempFile)];
         if (tempResolvedPath) {
             delete require.cache[require.resolve(tempFile)];
@@ -107,9 +107,13 @@ export function clearFileCache(changedFilePath: string) {
  */
 export function loadLayout(webDir: string): { componentPath: string; metadata?: any } | null {
     const layoutPath = path.join(webDir, 'layout.tsx');
-    const layoutPathJs = path.join(webDir, 'layout.ts');
+    const layoutPathTs = path.join(webDir, 'layout.ts');
+    const layoutPathJsx = path.join(webDir, 'layout.jsx');
+    const layoutPathJs = path.join(webDir, 'layout.js');
 
     const layoutFile = fs.existsSync(layoutPath) ? layoutPath :
+        fs.existsSync(layoutPathTs) ? layoutPathTs :
+        fs.existsSync(layoutPathJsx) ? layoutPathJsx :
         fs.existsSync(layoutPathJs) ? layoutPathJs : null;
 
     if (layoutFile) {
@@ -124,7 +128,7 @@ export function loadLayout(webDir: string): { componentPath: string; metadata?: 
                 .replace(/import\s+['"][^'"]*\.scss['"];?/g, '// SCSS import removido para servidor')
                 .replace(/import\s+['"][^'"]*\.sass['"];?/g, '// SASS import removido para servidor');
 
-            const tempFile = layoutFile.replace(/\.(tsx|ts)$/, '.temp.$1');
+            const tempFile = layoutFile.replace(/\.(tsx|ts|jsx|js)$/, '.temp.$1');
             fs.writeFileSync(tempFile, tempContent);
 
             // Otimização: limpa cache apenas se existir
@@ -189,8 +193,9 @@ export function loadRoutes(routesDir: string): (RouteConfig & { componentPath: s
                 if (entry.name === 'backend') continue;
                 scanDirectory(path.join(dir, entry.name), relativePath);
             } else if (entry.isFile()) {
-                // Filtra apenas arquivos .ts/.tsx
-                if (entry.name.endsWith('.ts') || entry.name.endsWith('.tsx')) {
+                // Filtra apenas arquivos .ts/.tsx/.js/.jsx
+                if (entry.name.endsWith('.ts') || entry.name.endsWith('.tsx') ||
+                    entry.name.endsWith('.js') || entry.name.endsWith('.jsx')) {
                     routeFiles.push(relativePath);
                 }
             }
@@ -283,12 +288,16 @@ let loadedMiddlewares: Map<string, HightMiddleware[]> = new Map();
 function loadMiddlewareFromDirectory(dir: string): HightMiddleware[] {
     const middlewares: HightMiddleware[] = [];
 
-    // Procura por middleware.ts ou middleware.tsx
+    // Procura por middleware.ts, middleware.tsx, middleware.js ou middleware.jsx
     const middlewarePath = path.join(dir, 'middleware.ts');
     const middlewarePathTsx = path.join(dir, 'middleware.tsx');
+    const middlewarePathJs = path.join(dir, 'middleware.js');
+    const middlewarePathJsx = path.join(dir, 'middleware.jsx');
 
     const middlewareFile = fs.existsSync(middlewarePath) ? middlewarePath :
-        fs.existsSync(middlewarePathTsx) ? middlewarePathTsx : null;
+        fs.existsSync(middlewarePathTsx) ? middlewarePathTsx :
+        fs.existsSync(middlewarePathJs) ? middlewarePathJs :
+        fs.existsSync(middlewarePathJsx) ? middlewarePathJsx : null;
 
     if (middlewareFile) {
         try {
@@ -365,8 +374,9 @@ export function loadBackendRoutes(backendRoutesDir: string) {
             if (entry.isDirectory()) {
                 scanDirectory(path.join(dir, entry.name), relativePath);
             } else if (entry.isFile()) {
-                const isTypeScript = entry.name.endsWith('.ts') || entry.name.endsWith('.tsx');
-                if (!isTypeScript) continue;
+                const isSupported = entry.name.endsWith('.ts') || entry.name.endsWith('.tsx') ||
+                    entry.name.endsWith('.js') || entry.name.endsWith('.jsx');
+                if (!isSupported) continue;
 
                 // Identifica middlewares durante o scan
                 if (entry.name.startsWith('middleware')) {
@@ -487,9 +497,13 @@ export function findMatchingBackendRoute(pathname: string, method: string) {
  */
 export function loadNotFound(webDir: string): { componentPath: string } | null {
     const notFoundPath = path.join(webDir, 'notFound.tsx');
-    const notFoundPathJs = path.join(webDir, 'notFound.ts');
+    const notFoundPathTs = path.join(webDir, 'notFound.ts');
+    const notFoundPathJsx = path.join(webDir, 'notFound.jsx');
+    const notFoundPathJs = path.join(webDir, 'notFound.js');
 
     const notFoundFile = fs.existsSync(notFoundPath) ? notFoundPath :
+        fs.existsSync(notFoundPathTs) ? notFoundPathTs :
+        fs.existsSync(notFoundPathJsx) ? notFoundPathJsx :
         fs.existsSync(notFoundPathJs) ? notFoundPathJs : null;
 
     if (notFoundFile) {
