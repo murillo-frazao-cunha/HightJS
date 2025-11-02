@@ -10,7 +10,8 @@
     "forceConsistentCasingInFileNames": true,
     "rootDir": "./src",
     "outDir": "./dist",
-    "moduleResolution": "nodenext"
+    "moduleResolution": "nodenext",
+    "types": ["hightjs/global"]
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]
