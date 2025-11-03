@@ -409,7 +409,7 @@ async function buildWithChunks(entryPoint, outdir, isProduction = false) {
       sourcemap: !isProduction,
       platform: 'browser',
       outdir: outdir,
-      loader: { '.js': 'jsx', '.ts': 'tsx' },
+      loader: { '.js': 'js', '.ts': 'tsx' },
       external: nodeBuiltIns,
       plugins: [postcssPlugin, npmDependenciesPlugin, reactResolvePlugin, markdownPlugin, assetsPlugin],
       format: 'esm', // ESM suporta melhor o code splitting
@@ -419,7 +419,7 @@ async function buildWithChunks(entryPoint, outdir, isProduction = false) {
       },
       conditions: ['development'],
       mainFields: ['browser', 'module', 'main'],
-      resolveExtensions: ['.tsx', '.ts', '.jsx', '.js'],
+      resolveExtensions: ['.tsx', '.ts', '.js'],
       splitting: true,
       chunkNames: 'chunks/[name]-[hash]',
       // Força o nome do entry para main(.js) ou main-[hash].js em prod
@@ -471,7 +471,7 @@ async function watchWithChunks(entryPoint, outdir, hotReloadManager = null) {
             sourcemap: true,
             platform: 'browser',
             outdir: outdir,
-            loader: { '.js': 'jsx', '.ts': 'tsx' },
+            loader: { '.js': 'js', '.ts': 'tsx' },
             external: nodeBuiltIns,
             plugins: [postcssPlugin, npmDependenciesPlugin, reactResolvePlugin, hmrPlugin, buildCompletePlugin, markdownPlugin, assetsPlugin],
             format: 'esm',
@@ -481,7 +481,7 @@ async function watchWithChunks(entryPoint, outdir, hotReloadManager = null) {
             },
             conditions: ['development'],
             mainFields: ['browser', 'module', 'main'],
-            resolveExtensions: ['.tsx', '.ts', '.jsx', '.js'],
+            resolveExtensions: ['.tsx', '.ts', '.js'],
             splitting: true,
             chunkNames: 'chunks/[name]-[hash]',
             entryNames: 'main',
@@ -517,7 +517,7 @@ async function build(entryPoint, outfile, isProduction = false) {
       sourcemap: !isProduction, // Só gera sourcemap em dev
       platform: 'browser',
       outfile: outfile,
-      loader: { '.js': 'jsx', '.ts': 'tsx' },
+      loader: { '.js': 'js', '.ts': 'tsx' },
       external: nodeBuiltIns,
       plugins: [postcssPlugin, npmDependenciesPlugin, reactResolvePlugin, markdownPlugin, assetsPlugin],
       format: 'iife',
@@ -529,7 +529,7 @@ async function build(entryPoint, outfile, isProduction = false) {
       // Configurações específicas para React 19
       conditions: ['development'],
       mainFields: ['browser', 'module', 'main'],
-      resolveExtensions: ['.tsx', '.ts', '.jsx', '.js'],
+      resolveExtensions: ['.tsx', '.ts', '.js'],
       // Garante que não há duplicação de dependências
       splitting: false,
       // Preserva nomes de funções e comportamento
@@ -580,7 +580,7 @@ async function watch(entryPoint, outfile, hotReloadManager = null) {
             sourcemap: true,
             platform: 'browser',
             outfile: outfile,
-            loader: { '.js': 'jsx', '.ts': 'tsx' },
+            loader: { '.js': 'js', '.ts': 'tsx' },
             external: nodeBuiltIns,
             format: 'iife',
             globalName: 'HwebApp',
@@ -591,7 +591,7 @@ async function watch(entryPoint, outfile, hotReloadManager = null) {
             // Configurações específicas para React 19 (mesmo que no build)
             conditions: ['development'],
             mainFields: ['browser', 'module', 'main'],
-            resolveExtensions: ['.tsx', '.ts', '.jsx', '.js'],
+            resolveExtensions: ['.tsx', '.ts', '.js'],
             // Garante que não há duplicação de dependências
             splitting: false,
             // Preserva nomes de funções e comportamento

@@ -192,8 +192,7 @@ export class HotReloadManager {
                                filePath.includes(path.join('src', 'web', 'components')) ||
                                filePath.includes('layout.tsx') ||
                                filePath.includes('not-found.tsx') ||
-                               filePath.endsWith('.tsx') ||
-                               filePath.endsWith('.jsx');
+                               filePath.endsWith('.tsx');
 
         const isBackendFile = filePath.includes(path.join('src', 'backend')) && !isFrontendFile;
 
@@ -393,9 +392,7 @@ export class HotReloadManager {
                             // Mudanças que exigem reload completo
                             const needsFullReload = 
                                 file.includes('layout.tsx') ||
-                                file.includes('layout.jsx') ||
                                 file.includes('not-found.tsx') ||
-                                file.includes('not-found.jsx') ||
                                 file.endsWith('.css');
                             
                             if (needsFullReload) {
@@ -405,15 +402,15 @@ export class HotReloadManager {
                             }
                             
                             // Mudanças em rotas: tenta HMR
-                            if (file.includes('/routes/') || file.includes('\\\\routes\\\\')) {
+                            if (file.includes('/routes/') || file.includes('\\routes\\')) {
                                 console.log('⚡ Route component changed, hot reloading...');
-                                
+
                                 // Dispara evento para forçar re-render
                                 const event = new CustomEvent('hmr:component-update', { 
                                     detail: { file: data.file, timestamp: Date.now() } 
                                 });
                                 window.dispatchEvent(event);
-                                
+
                                 // Aguarda 500ms para ver se o HMR foi bem-sucedido
                                 setTimeout(() => {
                                     const hmrSuccess = window.__HMR_SUCCESS__;
