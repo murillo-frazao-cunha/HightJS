@@ -402,7 +402,7 @@ export class HotReloadManager {
                             }
                             
                             // Mudanças em rotas: tenta HMR
-                            if (file.includes('/routes/') || file.includes('\\routes\\')) {
+                            if (file.includes('/routes/') || file.includes('routes')) {
                                 console.log('⚡ Route component changed, hot reloading...');
 
                                 // Dispara evento para forçar re-render
